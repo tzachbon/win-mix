@@ -34,7 +34,7 @@ try {
     & $InnoCompiler "/DAppVersion=$version" "/O$OutputDirectory" installer/Mix.iss
     if ($LASTEXITCODE) { throw 'Installer compilation failed.' }
     $installer = Join-Path $OutputDirectory "win-mix-Setup-$version-x64.exe"
-    if ((Get-Item $installer).VersionInfo.FileVersion -ne "$version.0") { throw 'Installer version mismatch.' }
+    if ((Get-Item $installer).VersionInfo.FileVersion.Trim() -ne "$version.0") { throw 'Installer version mismatch.' }
     $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
     [IO.File]::WriteAllText("$installer.sha256", "$hash  $([IO.Path]::GetFileName($installer))`n")
 } finally { Pop-Location }
