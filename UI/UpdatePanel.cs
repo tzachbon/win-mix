@@ -11,7 +11,6 @@ internal sealed class UpdatePanel : StackPanel
     readonly Button cancelButton = new() { Content = "Cancel" };
     readonly ProgressBar progressBar = new() { Minimum = 0, Maximum = 100 };
     readonly InfoBar statusBar = new() { IsClosable = false, IsOpen = false };
-    readonly TextBlock availableNote = MixVisuals.Caption("Win Mix will briefly close and reopen.");
     UpdateState state = new(UpdatePhase.Idle, "");
 
     internal event Action? UpdateRequested;
@@ -53,8 +52,6 @@ internal sealed class UpdatePanel : StackPanel
         progressRow.Children.Add(cancelButton);
         Children.Add(progressRow);
 
-        availableNote.Visibility = Visibility.Collapsed;
-        Children.Add(availableNote);
     }
 
     internal void SetState(UpdateState value)
@@ -82,6 +79,5 @@ internal sealed class UpdatePanel : StackPanel
             : 0;
         cancelButton.Visibility = value.CanCancel ? Visibility.Visible : Visibility.Collapsed;
         cancelButton.IsEnabled = value.CanCancel;
-        availableNote.Visibility = value.Phase == UpdatePhase.Available ? Visibility.Visible : Visibility.Collapsed;
     }
 }

@@ -54,8 +54,13 @@ sealed class UpdateController : IDisposable
                 Set(new(UpdatePhase.Checking, "Checking GitHub for updates…", "Checking…"));
                 available = await client.CheckAsync(installed, cancellation.Token).ConfigureAwait(false);
                 if (available == null) Set(new(UpdatePhase.Current, "You’re up to date."));
-                else Set(new(UpdatePhase.Available, $"Version {available.Version} is available.",
-                    installationDirectory() == null ? "Open release page" : $"Update to {available.Version}"));
+                else
+                {
+                    bool registered = installationDirectory() != null;
+                    Set(new(UpdatePhase.Available, $"Version {available.Version} is available. " +
+                        (registered ? "Win Mix will briefly close and reopen." : "Open the release page to install this version."),
+                        registered ? $"Update to {available.Version}" : "Open release page"));
+                }
                 return;
             }
             var directory = installationDirectory();
@@ -71,6 +76,7 @@ sealed class UpdateController : IDisposable
             cancellation.Token.ThrowIfCancellationRequested();
             if (!string.Equals(directory, installationDirectory(), StringComparison.OrdinalIgnoreCase))
                 throw new IOException("The installation location changed. Check for updates again.");
+            cancellation.Token.ThrowIfCancellationRequested();
             Set(new(UpdatePhase.Installing, "The installer will close and reopen Win Mix.", "Installing…"));
             using var process = launch(downloaded, directory);
             handedOff = true;
@@ -90,7 +96,7 @@ sealed class UpdateController : IDisposable
             var message = error switch
             {
                 InvalidDataException => error.Message,
-                System.ComponentModel.Win32Exception => "Could not start the installer. Nothing was installed. Try again.",
+                System.ComponentModel.Win32Exception => "Could not open the update. Nothing was installed. Try again.",
                 System.Net.Http.HttpRequestException => "Could not reach GitHub. Check your connection and try again later.",
                 IOException or UnauthorizedAccessException => "Could not save the update. Check disk space and permissions, then try again.",
                 _ => "Could not read the release information. Try again later."

@@ -31,6 +31,7 @@ internal static class Program
             await ControllerDuplicateAndCancel(tempRoot);
             await ControllerRetriesAndMapsTimeout(tempRoot);
             await ControllerCancelDownload(tempRoot);
+            await ControllerCancelBeforeLaunch(tempRoot);
             await InvalidDownloadNeverLaunches(tempRoot);
             await ControllerLaunchFailureCanRetry(tempRoot);
             Console.WriteLine($"Update checks passed ({assertions} assertions).");
@@ -265,6 +266,36 @@ internal static class Program
         Equal(UpdatePhase.Canceled, controller.State.Phase, "download cancellation reaches canceled state");
         Equal(0, launchCount, "canceled download never launches installer");
         NoCachedInstaller(Path.Combine(root, "controller-download-cancel"), "canceled controller download is removed");
+    }
+
+    static async Task ControllerCancelBeforeLaunch(string root)
+    {
+        var payload = FixtureBytes();
+        var handler = new Handler((request, _) => Task.FromResult(request.RequestUri == UpdateClient.Latest
+            ? Ok(new ByteArrayContent(Metadata(payload.Length, Sha256(payload))))
+            : Ok(new ByteArrayContent(payload))));
+        UpdateController? controller = null;
+        var calls = 0;
+        var launches = 0;
+        using (controller = new UpdateController(new UpdateClient(handler), new UpdateCache(Folder(root, "cancel-before-launch")),
+            new Version(1, 0, 1), () =>
+            {
+                if (++calls == 3) controller!.Cancel();
+                return root;
+            }, (_, _) => { launches++; throw new IOException("must not launch"); }))
+        {
+            await controller.RunAsync();
+            True(controller.State.Message.Contains("close and reopen"), "installed update explains restart");
+            await controller.RunAsync();
+            Equal(UpdatePhase.Canceled, controller.State.Phase, "cancellation during installation validation is honored");
+            Equal(0, launches, "cancellation at handoff never launches");
+            NoCachedInstaller(Path.Combine(root, "cancel-before-launch"), "handoff cancellation removes installer");
+        }
+        using var development = new UpdateController(new UpdateClient(new Handler((_, _) => Task.FromResult(Ok(new ByteArrayContent(Metadata()))))),
+            new UpdateCache(Folder(root, "development")), new Version(1, 0, 1), () => null);
+        await development.RunAsync();
+        Equal("Open release page", development.State.ActionLabel, "development offers webpage");
+        False(development.State.Message.Contains("close and reopen"), "development does not promise restart");
     }
 
     static async Task InvalidDownloadNeverLaunches(string root)
