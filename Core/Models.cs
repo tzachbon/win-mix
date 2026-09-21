@@ -8,6 +8,8 @@ public record AudioState(DeviceChoice[] Devices, Level[] Channels, SessionLevel[
 public static class MixRules
 {
     public static readonly string[] Channels = ["Game", "Chat", "Media", "Master"];
+    public static readonly int[] QuickOrder = [3, 0, 1, 2];
+    public static int MoveSelection(int current, int direction) => QuickOrder[Math.Clamp(Array.IndexOf(QuickOrder, current) + direction, 0, QuickOrder.Length - 1)];
     public static float Clamp(float value) => float.IsFinite(value) ? Math.Clamp(value, 0, 1) : throw new ArgumentOutOfRangeException(nameof(value));
     public static string? Discover(string channel, IEnumerable<DeviceChoice> devices)
     {

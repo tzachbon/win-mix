@@ -19,18 +19,19 @@ public sealed class OverlayWindow : Window
     const long CaptionAndFrame = 0x00CF0000, ExTopmost = 0x00000008, ExToolWindow = 0x00000080, ExNoActivate = 0x08000000;
     const uint SwpNoSize = 0x0001, SwpNoMove = 0x0002, SwpNoActivate = 0x0010, SwpFrameChanged = 0x0020;
     static readonly nint HwndTopmost = new(-1);
-    static readonly string[] ChannelKeys = ["Game", "Chat", "Media"];
+    static readonly string[] ChannelKeys = MixRules.QuickOrder.Select(index => MixRules.Channels[index]).ToArray();
 
     readonly AppWindow appWindow;
     readonly nint hwnd;
-    readonly ToggleButton[] tiles = new ToggleButton[3];
-    readonly TextBlock[] names = new TextBlock[3];
-    readonly TextBlock[] values = new TextBlock[3];
-    readonly TextBlock[] muteStates = new TextBlock[3];
-    readonly ProgressBar[] meters = new ProgressBar[3];
+    readonly ToggleButton[] tiles = new ToggleButton[4];
+    readonly TextBlock[] names = new TextBlock[4];
+    readonly TextBlock[] values = new TextBlock[4];
+    readonly TextBlock[] muteStates = new TextBlock[4];
+    readonly ProgressBar[] meters = new ProgressBar[4];
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 2 };
-    readonly Grid row = new() { ColumnSpacing = 6 };
+    readonly Grid row = new() { ColumnSpacing = 8, RowSpacing = 16 };
     bool destroying;
+    internal event Action<Native.Rect[]>? BoundsChanged;
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -62,7 +63,7 @@ public sealed class OverlayWindow : Window
     Grid BuildUi()
     {
         var root = MixVisuals.Root();
-        root.Padding = new Thickness(12);
+        root.Padding = new Thickness(16);
         root.RowSpacing = 8;
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -71,7 +72,10 @@ public sealed class OverlayWindow : Window
         root.Children.Add(errorText);
 
         for (int i = 0; i < 3; i++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (int i = 0; i < 3; i++)
+        row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        row.SizeChanged += (_, _) => { if (appWindow?.IsVisible == true) BoundsChanged?.Invoke(TileBounds()); };
+        for (int i = 0; i < tiles.Length; i++)
         {
             var content = new StackPanel { Spacing = 8 };
             var heading = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -87,9 +91,25 @@ public sealed class OverlayWindow : Window
             content.Children.Add(values[i]);
             content.Children.Add(meters[i]);
             content.Children.Add(muteStates[i]);
+            UIElement tileContent = content;
+            if (i == 0)
+            {
+                content.Children.Clear();
+                var main = new Grid { ColumnSpacing = 12 };
+                main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                main.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                main.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                heading.VerticalAlignment = muteStates[i].VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(muteStates[i], 1);
+                Grid.SetColumn(values[i], 2);
+                main.Children.Add(heading);
+                main.Children.Add(muteStates[i]);
+                main.Children.Add(values[i]);
+                tileContent = main;
+            }
             tiles[i] = new ToggleButton
             {
-                Content = content,
+                Content = tileContent,
                 IsTabStop = false,
                 IsHitTestVisible = false,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -100,7 +120,9 @@ public sealed class OverlayWindow : Window
             };
             AutomationProperties.SetName(tiles[i], ChannelKeys[i]);
             AutomationProperties.SetHelpText(tiles[i], "Audio channel status");
-            Grid.SetColumn(tiles[i], i);
+            Grid.SetRow(tiles[i], i == 0 ? 0 : 1);
+            Grid.SetColumn(tiles[i], i == 0 ? 0 : i - 1);
+            if (i == 0) Grid.SetColumnSpan(tiles[i], 3);
             row.Children.Add(tiles[i]);
         }
         Grid.SetRow(row, 1);
@@ -128,13 +150,13 @@ public sealed class OverlayWindow : Window
         {
             var level = state.Channels.FirstOrDefault(x => x.Key == ChannelKeys[i]);
             bool available = level?.Available ?? false;
-            names[i].Text = level?.Name ?? ChannelKeys[i];
+            names[i].Text = i == 0 ? "Main" : level?.Name ?? ChannelKeys[i];
             values[i].Text = available ? $"{Math.Round(Math.Clamp(level!.Volume, 0, 1) * 100):0}%" : "Unavailable";
             values[i].FontSize = available ? 28 : 14;
             muteStates[i].Text = available ? level!.Muted ? "Muted" : "" : "Choose a device";
             meters[i].Value = available ? Math.Clamp(level!.Volume, 0, 1) * 100 : 0;
             meters[i].Opacity = level?.Muted == true ? .35 : 1;
-            tiles[i].IsChecked = i == Math.Clamp(selected, 0, 2);
+            tiles[i].IsChecked = MixRules.QuickOrder[i] == selected;
             AutomationProperties.SetName(tiles[i], $"{names[i].Text}, {values[i].Text}, {muteStates[i].Text}");
         }
         errorText.Text = state.Error ?? "";
@@ -142,20 +164,27 @@ public sealed class OverlayWindow : Window
         AutomationProperties.SetName(errorText, state.Error ?? "");
     });
 
-    internal Native.Rect ShowNearPointer()
+    internal Native.Rect[] ShowAtBottom()
     {
-        var bounds = WindowPlacement.Fit(444, errorText.Visibility == Visibility.Visible ? 232 : 192, false);
+        var root = (Grid)Content;
+        root.Measure(new Windows.Foundation.Size(460, double.PositiveInfinity));
+        var bounds = WindowPlacement.Fit(460, Math.Max(280, (int)Math.Ceiling(root.DesiredSize.Height)), false);
         ShowAt(bounds);
-        ((Grid)Content).UpdateLayout();
-        var point = row.TransformToVisual((UIElement)Content).TransformPoint(new Windows.Foundation.Point());
-        double scale = row.XamlRoot.RasterizationScale;
-        return new Native.Rect {
-            Left = bounds.Left + (int)Math.Round(point.X * scale),
-            Top = bounds.Top + (int)Math.Round(point.Y * scale),
-            Right = bounds.Left + (int)Math.Round((point.X + row.ActualWidth) * scale),
-            Bottom = bounds.Top + (int)Math.Round((point.Y + row.ActualHeight) * scale)
-        };
+        root.UpdateLayout();
+        return TileBounds();
     }
+
+    Native.Rect[] TileBounds() => tiles.Select(tile =>
+    {
+        var point = tile.TransformToVisual((UIElement)Content).TransformPoint(new Windows.Foundation.Point());
+        double scale = tile.XamlRoot.RasterizationScale;
+        return new Native.Rect {
+            Left = appWindow.Position.X + (int)Math.Round(point.X * scale),
+            Top = appWindow.Position.Y + (int)Math.Round(point.Y * scale),
+            Right = appWindow.Position.X + (int)Math.Round((point.X + tile.ActualWidth) * scale),
+            Bottom = appWindow.Position.Y + (int)Math.Round((point.Y + tile.ActualHeight) * scale)
+        };
+    }).ToArray();
 
     void ShowAt(Native.Rect bounds)
     {

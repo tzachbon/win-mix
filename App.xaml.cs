@@ -88,9 +88,9 @@ public partial class App : Application
         switch (command.Kind)
         {
             case "Show":
-                overlay ??= new OverlayWindow();
+                if (overlay == null) { overlay = new OverlayWindow(); overlay.BoundsChanged += bounds => host!.SetBounds(bounds); }
                 overlay.Update(state, preferences.Selected);
-                host!.SetBounds(overlay.ShowNearPointer());
+                host!.SetBounds(overlay.ShowAtBottom());
                 if (!preferences.HasUsedShortcut)
                 {
                     preferences.HasUsedShortcut = true;
@@ -99,8 +99,8 @@ public partial class App : Application
                 }
                 break;
             case "Hide": overlay?.AppWindow.Hide(); Save(); break;
-            case "Left": Select(preferences.Selected - 1); break;
-            case "Right": Select(preferences.Selected + 1); break;
+            case "Left": Select(MixRules.MoveSelection(preferences.Selected, -1)); break;
+            case "Right": Select(MixRules.MoveSelection(preferences.Selected, 1)); break;
             case "Select": Select(command.Value); break;
             case "Up": audio!.Adjust(channel, 1); break;
             case "Down": audio!.Adjust(channel, -1); break;
@@ -114,7 +114,7 @@ public partial class App : Application
     }
     void Select(int selected)
     {
-        preferences.Selected = Math.Clamp(selected, 0, 2);
+        preferences.Selected = Math.Clamp(selected, 0, 3);
         overlay?.Update(state, preferences.Selected);
     }
     void Quit()

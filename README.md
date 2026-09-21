@@ -12,6 +12,10 @@ Levels are read from Windows. Muting preserves the volume. Changing volume prese
 
 The main window shows a shortcut tutorial card until you first open the quick controls. That dismissal is remembered. Session rows use the application's Windows icon when available. The generated app icon and its prompt are in `Assets`.
 
+Quick controls place **Main** in its own first row, separated from Game, Chat and Media. Main controls the physical headset master output selected in Settings. Left/Right navigates Main, Game, Chat, Media. The last selection is retained. The same volume and M shortcuts apply to all four.
+
+The startup toggle also checks Windows' per-app approval marker. An explicit On action clears only Win Mix's marker. Normal launch and upgrades preserve it. The marker format is not a documented Windows API, so malformed or unknown states are conservatively shown as Off.
+
 ## Build
 
 Install the .NET SDK version pinned in `global.json` and Inno Setup 7.1.0. From this folder:

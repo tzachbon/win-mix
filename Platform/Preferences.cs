@@ -12,7 +12,7 @@ sealed class Preferences
     public static string FilePath => Path.Combine(DirectoryPath,"settings.json");
     public static Preferences Load()
     {
-        try { var p=JsonSerializer.Deserialize<Preferences>(File.ReadAllText(FilePath)); if(p?.Bindings!=null) {p.Selected=Math.Clamp(p.Selected,0,2);return p;} } catch { }
+        try { var p=JsonSerializer.Deserialize<Preferences>(File.ReadAllText(FilePath)); if(p?.Bindings!=null) {p.Selected=Math.Clamp(p.Selected,0,3);return p;} } catch { }
         return new();
     }
     public void Save()
@@ -41,8 +41,8 @@ sealed class Preferences
         if(enabled)
         {
             using var approval=Registry.CurrentUser.OpenSubKey(ApprovalKey,true);
-            approval?.DeleteValue("Mix.Native",false);
             key.SetValue("Mix.Native",$"\"{Environment.ProcessPath}\" --background");
+            approval?.DeleteValue("Mix.Native",false);
         }
         else key.DeleteValue("Mix.Native",false);
     }

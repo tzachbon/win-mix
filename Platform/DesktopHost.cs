@@ -13,7 +13,7 @@ sealed class DesktopHost : IDisposable
     readonly Native.WndProc wndProc;
     readonly ManualResetEventSlim ready = new();
     readonly object boundsLock = new();
-    Native.Rect bounds;
+    Native.Rect[] bounds = [];
     nint hwnd, keyHook, mouseHook, trayIcon;
     uint taskbar;
     Exception? failure;
@@ -30,7 +30,7 @@ sealed class DesktopHost : IDisposable
         if (!ready.Wait(5000)) throw new TimeoutException("Input initialization timed out.");
         if (failure != null) throw failure;
     }
-    public void SetBounds(Native.Rect rect) { lock (boundsLock) bounds = rect; }
+    public void SetBounds(Native.Rect[] rectangles) { lock (boundsLock) bounds = rectangles; }
     void Send(string kind, int value = 0) => Command?.Invoke(new(kind, value));
     void Reset()
     {
@@ -103,7 +103,7 @@ sealed class DesktopHost : IDisposable
         var result=gesture.Key((int)key.Key,message==0x100 || message==0x104,(key.Flags&0x10)!=0);
         if(result.Action is { } action)
         {
-            if(action==GestureAction.Show) hovered=-1;
+            if(action is GestureAction.Show or GestureAction.Left or GestureAction.Right) hovered=-1;
             Send(action.ToString());
         }
         return result.Suppress?1:Native.CallNextHookEx(keyHook,code,message,data);
@@ -115,13 +115,15 @@ sealed class DesktopHost : IDisposable
         if ((mouseData.Flags&1)!=0) return Native.CallNextHookEx(mouseHook,code,message,data);
         if(message==0x200)
         {
-            Native.Rect r; lock(boundsLock) r=bounds;
+            Native.Rect[] rectangles; lock(boundsLock) rectangles=bounds;
             var p=mouseData.Point;
-            if(p.X>=r.Left && p.X<r.Right && p.Y>=r.Top && p.Y<r.Bottom && r.Right>r.Left)
+            int selected=-1;
+            for(int i=0; i<rectangles.Length; i++)
             {
-                int selected=Math.Clamp((p.X-r.Left)*3/(r.Right-r.Left),0,2);
-                if(selected!=hovered) { hovered=selected; Send("Select",selected); }
+                var r=rectangles[i];
+                if(p.X>=r.Left && p.X<r.Right && p.Y>=r.Top && p.Y<r.Bottom) { selected=MixRules.QuickOrder[i]; break; }
             }
+            if(selected!=hovered) { hovered=selected; if(selected>=0) Send("Select",selected); }
         }
         if(message==0x20A)
         {

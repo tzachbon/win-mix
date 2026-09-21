@@ -189,6 +189,12 @@ internal static class GestureTests
 
     private static void MixRulesRemainDeterministic()
     {
+        Is(3, MixRules.MoveSelection(0, -1), "Game left selects Main");
+        Is(0, MixRules.MoveSelection(3, 1), "Main right selects Game");
+        Is(1, MixRules.MoveSelection(0, 1), "Game right selects Chat");
+        Is(2, MixRules.MoveSelection(1, 1), "Chat right selects Media");
+        Is(3, MixRules.MoveSelection(3, -1), "Main left clamps");
+        Is(2, MixRules.MoveSelection(2, 1), "Media right clamps");
         DeviceChoice[] devices =
         [
             new("game", "SteelSeries Sonar - Gaming (USB)"),

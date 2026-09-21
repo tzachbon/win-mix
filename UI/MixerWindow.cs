@@ -169,7 +169,7 @@ public sealed class MixerWindow : Window
         var name = new TextBlock { Text = label, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
         ToolTipService.SetToolTip(name, label);
         var percent = new TextBlock { Text = "Unavailable", FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
-        var mute = new ToggleButton { Content = new SymbolIcon(Symbol.Volume), Width = 40, Height = 34, IsEnabled = false };
+        var mute = new ToggleButton { Content = new SymbolIcon(Symbol.Volume), Width = 40, Height = 36, Padding = new Thickness(0), IsEnabled = false };
         var slider = new Slider { Minimum = 0, Maximum = 100, StepFrequency = 1, IsEnabled = false };
         AutomationProperties.SetName(slider, $"{label} volume");
         AutomationProperties.SetHelpText(slider, "Volume from 0 to 100 percent");
