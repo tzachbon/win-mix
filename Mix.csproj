@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <Compile Remove="Tests/**" />
+    <Content Include="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="Licenses\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app-icon.png" CopyToOutputDirectory="PreserveNewest" />

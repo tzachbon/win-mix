@@ -28,9 +28,7 @@ try {
     }
     & $Dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true
     if ($LASTEXITCODE) { throw 'Publish failed.' }
-    foreach ($resource in 'win-mix.pri', 'App.xbf', 'Assets/app.ico', 'Assets/app-icon.png') {
-        if (!(Test-Path (Join-Path publish $resource))) { throw "Missing published resource: $resource" }
-    }
+    & (Join-Path $PSScriptRoot 'Tests/PublishChecks.ps1') -PublishDirectory $publishPath
     $appVersion = (Get-Item 'publish/win-mix.dll').VersionInfo.ProductVersion.Split('+')[0]
     if ($appVersion -ne $version) { throw "Application version mismatch: $appVersion" }
     & $InnoCompiler "/DAppVersion=$version" "/O$OutputDirectory" installer/Mix.iss
