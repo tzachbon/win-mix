@@ -75,3 +75,13 @@ Horizontal layout dbe6f2f: Main, Game, Chat and Media share one row, with extra 
 - Downloaded the hosted installer, verified its checksum/version, and upgraded the existing per-user installation. Exit code 0; settings hash, startup registration and startup approval were preserved. Installed version matched; exactly one process remained after a quiet background launch with `MainWindowHandle = 0`.
 - Made the repository public after release verification. Unauthenticated repository API access and downloads of both release assets succeeded. Public installer bytes matched the tested hosted installer and sidecar.
 - This validates the release workflow and upgrade on the development machine. The earlier clean-machine and manual UI acceptance gaps remain unchanged.
+
+## Manual updater implementation (2026-09-21)
+
+- Added manual Settings checks, bounded verified downloads, cancellation, registered-installation gating, and the existing Inno shutdown/reopen handoff. Automatic checks remain deferred.
+- Focused fake-HTTP suite passed 94 assertions, including cancellation during final installation-directory validation, rejected downloads never launching, checksums and PE versions, redirects, limits, duplicate actions, timeout/error/retry behavior, and cache ownership.
+- Production downloader successfully fetched and verified the real GitHub v1.0.1 installer without executing it. Its digest matched the published release digest above.
+- Executed the actual Inno cache-cleanup procedure in an isolated fixture. Owned files were removed, locked files were deferred, and unrelated files and nested folders survived.
+- Native Settings displayed the new version and Check for updates button. A real manual check correctly showed current for a development build newer than the published release. Computer Use was stopped by the user with Escape. Further interactive checks and the real updater-button upgrade remain pending.
+- These checks do not establish clean-machine installation or full native interaction acceptance.
+- Fresh isolated Sol xhigh post-implementation review passed aggregate changes 6702036..1ac5c06 after the cancellation and development-wording fixes. Clean build, publish and Inno compilation passed at 1ac5c06. Real button-driven upgrade remains the rollout acceptance gate.
