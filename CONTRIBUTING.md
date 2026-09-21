@@ -50,7 +50,7 @@ dotnet run --project Tests/AudioProbe/AudioProbe.csproj -- --exercise
 - `Platform/` contains native Windows input/tray hosting, single-instance handling, saved preferences, and startup registration.
 - `UI/` contains the WinUI mixer, settings, quick-controls overlay, and app icons.
 
-Gesture and selection changes can be checked with `Tests/GestureTests.csproj`. Audio-device and session changes depend on real Windows endpoints; use the probe with care and record any manual checks performed. Do not treat a successful source build as proof of interactive or clean-machine behavior. Existing gaps are recorded in [VERIFICATION.md](VERIFICATION.md).
+Gesture and selection changes can be checked with `Tests/GestureTests.csproj`. Audio-device and session changes depend on real Windows endpoints; use the probe with care and record any manual checks performed. Do not treat a successful source build as proof of interactive or clean-machine behavior. Existing gaps are recorded in [open-source readiness verification](docs/research/open-source-readiness-verification.md).
 
 ## Diagnostics
 

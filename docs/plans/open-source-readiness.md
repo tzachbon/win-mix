@@ -1,6 +1,6 @@
 # Win Mix open-source readiness plan
 
-Implementation was authorized on 2026-09-21. The owner subsequently selected GPL v3.0 only, superseding the MIT proposal below. The sections below retain the original planning baseline and acceptance criteria. Current execution evidence and remaining gates are recorded in [VERIFICATION.md](../../VERIFICATION.md#open-source-readiness-implementation-2026-09-21).
+Implementation was authorized on 2026-09-21. The owner subsequently selected GPL v3.0 only, superseding the MIT proposal below. The sections below retain the original planning baseline and acceptance criteria. Current execution evidence and remaining gates are recorded in [docs/research/open-source-readiness-verification.md](../research/open-source-readiness-verification.md#open-source-readiness-implementation-2026-09-21).
 
 ## Objective and delivery boundary
 
@@ -23,10 +23,10 @@ Baseline: `6702036067b36ef3c2f9854a76eba73a99e979fc`, inspected 2026-09-21. The 
 - [SDK pin](../../global.json) requires exactly 10.0.401 with roll-forward disabled.
 - [Build script](../../build.ps1) runs gesture tests, publishes self-contained output, verifies resources/version and creates the installer/checksum.
 - [Release workflow](../../.github/workflows/release.yml) builds on Windows, pins action revisions and separates release write permission into the publishing job.
-- [Verification](../../VERIFICATION.md) records successful development-machine and release checks, explicitly leaving clean-machine, accessibility, monitor/DPI and physical-device scenarios incomplete.
+- [Verification](../research/open-source-readiness-verification.md) records successful development-machine and release checks, explicitly leaving clean-machine, accessibility, monitor/DPI and physical-device scenarios incomplete.
 - [Research comparison](../research/open-source-readiness.md) supplies external evidence and the owner's public-project examples.
 
-The v1.0.1 release and its installer/checksum assets were verified through GitHub metadata during planning. Historical runtime claims above come from VERIFICATION.md and were not rerun. The release version/tag guard check passed locally. This shell has .NET SDKs 7 and 9, not the pinned SDK, so no fresh application build is claimed.
+The v1.0.1 release and its installer/checksum assets were verified through GitHub metadata during planning. Historical runtime claims above come from docs/research/open-source-readiness-verification.md and were not rerun. The release version/tag guard check passed locally. This shell has .NET SDKs 7 and 9, not the pinned SDK, so no fresh application build is claimed.
 
 ## Requirements and scope
 
@@ -69,7 +69,7 @@ SECURITY.md                     verified private report route and supported-vers
 .github/pull_request_template.md summary and honest validation
 .github/workflows/ci.yml         PR and main validation, contents: read
 Mix.csproj                      package the approved root license with existing notices
-VERIFICATION.md                 dated manual and clean-machine evidence
+docs/research/open-source-readiness-verification.md                 dated manual and clean-machine evidence
 ```
 
 The existing release workflow remains the only publisher:
@@ -132,13 +132,13 @@ Done when ordinary reports capture reproduction details and the private route ex
 
 ### T5: prove the advertised download journey (R6)
 
-Dependency: authorization for interactive app/installer execution on a disposable Windows environment. This task can start against existing v1.0.1 independently of T1-T4. Feed its findings into T2 and VERIFICATION.md. Repeat the affected packaging checks after T1 or any later installer change.
+Dependency: authorization for interactive app/installer execution on a disposable Windows environment. This task can start against existing v1.0.1 independently of T1-T4. Feed its findings into T2 and docs/research/open-source-readiness-verification.md. Repeat the affected packaging checks after T1 or any later installer change.
 
-- [ ] Download the exact intended release installer and sidecar. Verify their match before installation and retain release tag and hash in VERIFICATION.md.
+- [ ] Download the exact intended release installer and sidecar. Verify their match before installation and retain release tag and hash in docs/research/open-source-readiness-verification.md.
 - [ ] On Windows without developer runtimes, install as a standard user, launch from the Start menu, inspect bundled-runtime loading, use tray/mixer/quick controls, and uninstall. Record OS and app versions. Do not extrapolate one Windows version to the whole support range.
 - [ ] Exercise the already-listed manual gaps: keyboard/mute, theme, DPI/monitors, actual unplug/reconnect, session disappearance, sign-in startup and installer Retry/Cancel. Use test audio endpoints and record which cases could not be run.
 - [ ] Verify upgrade preserves device preferences and startup choices, while uninstall removes only app-owned data. Retain evidence without exposing raw user configuration.
-- [ ] Update VERIFICATION.md with dated pass/fail/blocked results and link only real screenshots or recordings. Leave incomplete rows explicitly incomplete.
+- [ ] Update docs/research/open-source-readiness-verification.md with dated pass/fail/blocked results and link only real screenshots or recordings. Leave incomplete rows explicitly incomplete.
 
 Done when required clean-machine and manual scenarios pass. If no disposable environment is available, keep acceptance partial and preserve the narrow claims already supported. Code signing and package-manager distribution are later owner decisions, not prerequisites to honest unsigned distribution.
 

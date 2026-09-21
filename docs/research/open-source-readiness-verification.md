@@ -1,0 +1,21 @@
+# Open-source readiness verification
+
+## Open-source readiness implementation (2026-09-21)
+
+Status: PARTIAL product acceptance. Repository changes implement T1-T4 of the [readiness plan](../plans/open-source-readiness.md). T5 clean-machine and outstanding interactive scenarios remain unverified.
+
+| Check | Evidence |
+| --- | --- |
+| Licensing and provenance | Root GPL v3.0 license (`GPL-3.0-only`, selected by the owner), sole recorded Git author `tzachbon`, generated-icon prompt retained. [Attribution inventory](../../Licenses/README.md) identifies bundled components and adds missing package-supplied transitive notices. |
+| Local deterministic checks | SDK 10.0.401: `dotnet run --project Tests/GestureTests.csproj -c Release` and `./Tests/ReleaseChecks.ps1` passed. |
+| Locked publish | `dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true` passed. `./Tests/PublishChecks.ps1` verified the four runtime resources and all 15 license/attribution files byte-for-byte. A scratch copy with a deliberately corrupted LICENSE was rejected. |
+| GPL-3.0-only locked publish | After the owner-selected license change, the locked publish and `./Tests/PublishChecks.ps1` passed. All 15 published license/attribution files matched source byte-for-byte. This verifies the current publish only. |
+| Installer compilation (historical MIT build) | `build.ps1` passed with Inno Setup 7.1.0 before the license change. Compiler output listed root LICENSE and every Licenses file as compressed into the installer. SHA-256: `39db9e4d49ca785badcf5f9288d2c28a48f26a0e99d382c907cddabe56839ecc`. This historical MIT package was not installed or released and does not represent a GPL installer. |
+| Genuine visual | [Mixer screenshot](../../docs/images/mixer.png) captured from installed 1.0.1 on Windows 11 build 26200. Window-only image inspected for private content. This confirms the displayed mixer layout, not quick-control keyboard/mute or multi-DPI behavior. |
+| Workflow boundary | New CI uses read-only permissions and credential-free checkout for PRs and pushes to main. The tag-release workflow is unchanged. Implementation `2ab6e55` passed [run 35648027204](https://github.com/tzachbon/win-mix/actions/runs/35648027204). A deliberate failing assertion on disposable PR #4 at `79c9f492fb9470e0fca2a36cf8d9a90b0884c76a` failed [run 35648037114](https://github.com/tzachbon/win-mix/actions/runs/35648037114) with exit 1. Removing it in `bc3121a1c3add32ed669c9d702aee1d246103a42` restored the exact implementation tree and passed [run 35648241275](https://github.com/tzachbon/win-mix/actions/runs/35648241275). The disposable PR was closed without merging. |
+| Reporting | Issue and PR templates added. Both issue forms rendered correctly in GitHub's branch-file Preview, including required fields. After owner approval, private vulnerability reporting was enabled and the repository API returned `enabled: true`. The signed-in `/security/advisories/new` page displayed its private advisory form; no report was submitted. [SECURITY.md](../../SECURITY.md) documents the private route, latest-release scope and diagnostic redaction. |
+| Independent review | Separate fresh-context planning and post-change reviews in isolated checkouts passed. The post-change review covered implementation `2ab6e55` with no P0-P2 findings. |
+
+Windows Sandbox is absent on this host, and the current shell lacks permission to enumerate Hyper-V VMs. Owner approval does not remove those environment limits. No fresh clean-machine, physical unplug/reconnect, sign-in, interactive installer Retry/Cancel, theme, or multi-monitor/DPI result is claimed. Earlier runtime evidence above remains historical. Build/notice checks do not close these acceptance gaps.
+
+After integrating `main` through `1f32195`, the combined readiness tree at `ade5a7f` passed release guards, gesture tests, all 94 updater assertions, locked publication and all 15 license-file checks. CI and the contributor checklist now include the updater tests. A fresh full Inno Setup 7.1.0 build produced version 1.0.3 with SHA-256 `e0de43c21b475b5f4693ae83caaf532e770b19b1a9e2441dbf37e0e0d2f99ddd`; this readiness package was not installed or released. A separate isolated review of the enabled reporting setting and security-documentation changes passed.
