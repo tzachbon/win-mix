@@ -9,9 +9,6 @@ public record struct KeyDecision(bool Suppress, GestureAction? Action);
 
 public class Gesture
 {
-    private const int VkLControl = 0xA2;
-    private const int VkLMenu = 0xA4;
-    private const int VkRMenu = 0xA5;
     private const int VkShift = 0x10;
     private const int VkControl = 0x11;
     private const int VkMenu = 0x12;
@@ -19,16 +16,24 @@ public class Gesture
     private const int VkUp = 0x26;
     private const int VkRight = 0x27;
     private const int VkDown = 0x28;
-    private const int VkM = 0x4D;
     private const int VkEscape = 0x1B;
 
     private readonly HashSet<int> _down = new();
     private readonly HashSet<int> _ownedKeyUps = new();
+    private KeyboardBindings _bindings;
     private bool _armed;
     private bool _active;
     private int _wheelRemainder;
 
+    public Gesture(KeyboardBindings? bindings = null)
+    {
+        _bindings = bindings ?? KeyboardBindings.Default;
+        if (_bindings.Validate() is { } error)
+            throw new ArgumentException(error, nameof(bindings));
+    }
+
     public bool Active => _active;
+    public KeyboardBindings Bindings => _bindings;
 
     public KeyDecision Key(int vk, bool down, bool injected = false)
     {
@@ -57,6 +62,18 @@ public class Gesture
         _active = false;
         _armed = false;
         _wheelRemainder = 0;
+    }
+
+    public void SetBindings(KeyboardBindings bindings)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        if (bindings.Validate() is { } error)
+            throw new ArgumentException(error, nameof(bindings));
+
+        _bindings = bindings;
+        _active = false;
+        _wheelRemainder = 0;
+        _armed = _down.Count == 0 && _ownedKeyUps.Count == 0;
     }
 
     public void InitializeHeld(IEnumerable<int> heldKeys)
@@ -90,10 +107,13 @@ public class Gesture
             if (action.HasValue)
             {
                 _ownedKeyUps.Add(vk);
-                return new(true, vk == VkM && !firstDown ? null : action);
+                return new(true, vk == _bindings.Mute && !firstDown ? null : action);
             }
 
-            if (vk is not (VkLControl or VkLMenu))
+            if (_ownedKeyUps.Contains(vk))
+                return new(true, null);
+
+            if (!_bindings.Opening.Contains(vk))
                 return Hide(suppress: false);
 
             return default;
@@ -102,12 +122,13 @@ public class Gesture
         if (_ownedKeyUps.Contains(vk))
             return new(true, null);
 
-        if (_armed && firstDown && (vk is VkLControl or VkLMenu) && _down.Count == 2 &&
-            _down.Contains(VkLControl) && _down.Contains(VkLMenu))
+        if (_armed && firstDown && _down.Count == _bindings.Opening.Count &&
+            _bindings.Opening.All(_down.Contains))
         {
             _active = true;
             _wheelRemainder = 0;
-            return new(false, GestureAction.Show);
+            _ownedKeyUps.Add(vk);
+            return new(true, GestureAction.Show);
         }
 
         return default;
@@ -115,17 +136,19 @@ public class Gesture
 
     private KeyDecision KeyUp(int vk)
     {
+        bool openingRelease = _active && _bindings.Opening.Contains(vk);
         _down.Remove(vk);
+        bool owned = _ownedKeyUps.Remove(vk);
 
-        if (_ownedKeyUps.Remove(vk))
+        if (openingRelease)
+            return Hide(suppress: owned);
+
+        if (owned)
         {
             if (_down.Count == 0)
                 _armed = true;
             return new(true, null);
         }
-
-        if (_active && (vk is VkLControl or VkLMenu))
-            return Hide(suppress: false);
 
         if (_down.Count == 0)
             _armed = true;
@@ -141,13 +164,13 @@ public class Gesture
         return new(suppress, GestureAction.Hide);
     }
 
-    private static GestureAction? ActionFor(int vk) => vk switch
+    private GestureAction? ActionFor(int vk) => vk switch
     {
         VkLeft => GestureAction.Left,
         VkRight => GestureAction.Right,
         VkUp => GestureAction.Up,
         VkDown => GestureAction.Down,
-        VkM => GestureAction.Mute,
+        _ when vk == _bindings.Mute => GestureAction.Mute,
         _ => null
     };
 }

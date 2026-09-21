@@ -6,6 +6,10 @@ Download the installer from the [latest release](https://github.com/tzachbon/win
 
 Hold **Left Ctrl + Left Alt** to show quick controls at the bottom center of the current monitor. Hover a channel or press Left/Right to select it. Scroll or press Up/Down to change its volume by two percentage points. Press M to toggle mute. Release either modifier to hide the controls. Escape dismisses them. Release the keys before starting another gesture.
 
+In **Settings > Keyboard shortcuts**, record a replacement opening shortcut or mute key. Release all recorded keys, then choose **Apply** to save and activate both bindings. **Cancel** discards edits. **Restore defaults** stages Left Ctrl + Left Alt and M until you apply them. Mute is one additional key pressed while the opening shortcut is held. The hints and tray tooltip follow the active bindings.
+
+Opening shortcuts can be a single key or a simultaneous combination, including modifier-only combinations. Arrow keys and Escape stay reserved, and the opening shortcut cannot contain the selected mute key. Single-key shortcuts show a warning because they replace that key's normal action. Mix consumes the key that completes a shortcut and its repeat/release events. Earlier keys in a combination may already have reached the foreground application. Windows-reserved shortcuts such as Ctrl+Alt+Delete and Win+L are unsupported. Conflicts with other shortcut tools and hardware key rollover are not automatically detected.
+
 The tray menu opens **Mixer**, **Settings**, or exits. Closing the mixer keeps Win Mix running in the tray. Settings lets you choose the Windows output for each channel and the physical headset master output. Missing devices stay unavailable until their exact endpoint returns. Win Mix never changes application routing.
 
 Levels are read from Windows. Muting preserves the volume. Changing volume preserves mute. Settings contain device IDs and the last selected channel, never saved audio levels. Headset dial integration, game-specific overlay compatibility and Sonar's internal mixer synchronization are outside this version.

@@ -75,3 +75,13 @@ Horizontal layout dbe6f2f: Main, Game, Chat and Media share one row, with extra 
 - Downloaded the hosted installer, verified its checksum/version, and upgraded the existing per-user installation. Exit code 0; settings hash, startup registration and startup approval were preserved. Installed version matched; exactly one process remained after a quiet background launch with `MainWindowHandle = 0`.
 - Made the repository public after release verification. Unauthenticated repository API access and downloads of both release assets succeeded. Public installer bytes matched the tested hosted installer and sidecar.
 - This validates the release workflow and upgrade on the development machine. The earlier clean-machine and manual UI acceptance gaps remain unchanged.
+
+## Editable keyboard bindings (2026-09-21, working-tree change)
+
+- Added recorded opening and mute bindings, complete-draft conflict validation, Apply/Cancel/defaults, persistence, host-thread activation acknowledgement, and active shortcut hints.
+- Used the existing task-local .NET SDK 10.0.401. No SDK pin or package dependency changed.
+- `dotnet run --project Tests/GestureTests.csproj -c Release` passed. The executable covers default/custom activation and suppression, mute repeat, dynamic conflicts and Windows-reserved combinations, recording and neutral rearming, cancellation/rebinding release ownership, session resynchronization, serialization, preference migration, save/activation failures, and editor drafts.
+- Persistence tests use unique temporary paths and fake host callbacks, not the installed application's settings.
+- `dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true` passed. The output is a local build, not an installed or released update.
+- A fresh-context review in an isolated checkout found no material production-code issues. `git diff --check` passed.
+- Acceptance for this change is automated only. The app was not launched for physical keyboard or visual checks. WinUI focus/deactivation events, real keyboard layouts and rollover, and interaction with other global shortcut tools remain unverified.
