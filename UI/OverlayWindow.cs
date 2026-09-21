@@ -29,7 +29,7 @@ public sealed class OverlayWindow : Window
     readonly TextBlock[] muteStates = new TextBlock[4];
     readonly ProgressBar[] meters = new ProgressBar[4];
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 2 };
-    readonly Grid row = new() { ColumnSpacing = 12, RowSpacing = 20 };
+    readonly Grid row = new() { ColumnSpacing = 12 };
     bool destroying;
     internal event Action<Native.Rect[]>? BoundsChanged;
 
@@ -79,9 +79,7 @@ public sealed class OverlayWindow : Window
         Grid.SetRow(errorText, 1);
         root.Children.Add(errorText);
 
-        for (int i = 0; i < 3; i++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (int i = 0; i < tiles.Length; i++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.SizeChanged += (_, _) => { if (appWindow?.IsVisible == true) BoundsChanged?.Invoke(TileBounds()); };
         for (int i = 0; i < tiles.Length; i++)
         {
@@ -99,25 +97,9 @@ public sealed class OverlayWindow : Window
             content.Children.Add(values[i]);
             content.Children.Add(meters[i]);
             content.Children.Add(muteStates[i]);
-            UIElement tileContent = content;
-            if (i == 0)
-            {
-                content.Children.Clear();
-                var main = new Grid { ColumnSpacing = 12 };
-                main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                main.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                main.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                heading.VerticalAlignment = muteStates[i].VerticalAlignment = VerticalAlignment.Center;
-                Grid.SetColumn(muteStates[i], 1);
-                Grid.SetColumn(values[i], 2);
-                main.Children.Add(heading);
-                main.Children.Add(muteStates[i]);
-                main.Children.Add(values[i]);
-                tileContent = main;
-            }
             tiles[i] = new ToggleButton
             {
-                Content = tileContent,
+                Content = content,
                 IsTabStop = false,
                 IsHitTestVisible = false,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -128,9 +110,8 @@ public sealed class OverlayWindow : Window
             };
             AutomationProperties.SetName(tiles[i], ChannelKeys[i]);
             AutomationProperties.SetHelpText(tiles[i], "Audio channel status");
-            Grid.SetRow(tiles[i], i == 0 ? 0 : 1);
-            Grid.SetColumn(tiles[i], i == 0 ? 0 : i - 1);
-            if (i == 0) Grid.SetColumnSpan(tiles[i], 3);
+            Grid.SetColumn(tiles[i], i);
+            if (i == 0) tiles[i].Margin = new Thickness(0, 0, 12, 0);
             row.Children.Add(tiles[i]);
         }
         Grid.SetRow(row, 2);
@@ -178,8 +159,8 @@ public sealed class OverlayWindow : Window
     internal Native.Rect[] ShowAtBottom()
     {
         var root = (Grid)Content;
-        root.Measure(new Windows.Foundation.Size(500, double.PositiveInfinity));
-        var bounds = WindowPlacement.Fit(500, Math.Max(280, (int)Math.Ceiling(root.DesiredSize.Height)), false);
+        root.Measure(new Windows.Foundation.Size(680, double.PositiveInfinity));
+        var bounds = WindowPlacement.Fit(680, Math.Max(260, (int)Math.Ceiling(root.DesiredSize.Height)), false);
         ShowAt(bounds);
         root.UpdateLayout();
         return TileBounds();
