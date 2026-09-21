@@ -1,6 +1,6 @@
 # Win Mix open-source readiness plan
 
-Implementation was authorized on 2026-09-21. The sections below retain the original planning baseline and acceptance criteria. Current execution evidence and remaining gates are recorded in [VERIFICATION.md](../../VERIFICATION.md#open-source-readiness-implementation-2026-09-21).
+Implementation was authorized on 2026-09-21. The owner subsequently selected GPL v3.0 only, superseding the MIT proposal below. The sections below retain the original planning baseline and acceptance criteria. Current execution evidence and remaining gates are recorded in [VERIFICATION.md](../../VERIFICATION.md#open-source-readiness-implementation-2026-09-21).
 
 ## Objective and delivery boundary
 

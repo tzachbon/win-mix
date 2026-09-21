@@ -1,6 +1,6 @@
 # Attribution
 
-Win Mix's original source and documentation use the root MIT [LICENSE](../LICENSE), copyright 2026 tzachbon. The Git history at the readiness review records tzachbon as the sole author. No code or artwork was copied from the comparison projects in the readiness research.
+Win Mix's original source and documentation use the root GNU GPL v3.0 [LICENSE](../LICENSE) (`GPL-3.0-only`), copyright 2026 tzachbon. The Git history at the readiness review records tzachbon as the sole author. No code or artwork was copied from the comparison projects in the readiness research.
 
 The app icon was generated for this project. Its prompt and conversion history are in `Assets/icon-prompt.txt` in the source repository. `docs/images/mixer.png` is a capture of Win Mix 1.0.1 on Windows 11. System glyphs and other applications' icons are loaded from Windows at runtime, not checked in as project artwork. Third-party components retain their own terms.
 
@@ -17,4 +17,4 @@ The self-contained build carries these unmodified upstream license and notice fi
 | Windows ML 2.1.74, including ONNX Runtime | NuGet package `license.txt` and `ThirdPartyNotices.txt` | `WindowsML-license.txt`, `WindowsML-NOTICES.txt` |
 | System.Numerics.Tensors 9.0.0 | NuGet package `LICENSE.TXT` and `THIRD-PARTY-NOTICES.TXT` | `Tensors-LICENSE.txt`, `Tensors-NOTICES.txt` |
 
-The Windows App SDK component packages share the main license text except ML. WinUI has an additional notice file. SDK BuildTools and Inno Setup are build tools, not application payload. Versions come from `packages.lock.json` in the source repository. Recheck this inventory against the published files whenever dependencies change. The project's MIT license does not replace Microsoft's binary distribution terms or any third-party notices.
+The Windows App SDK component packages share the main license text except ML. WinUI has an additional notice file. SDK BuildTools and Inno Setup are build tools, not application payload. Versions come from `packages.lock.json` in the source repository. Recheck this inventory against the published files whenever dependencies change. The project's GPL v3.0 license does not replace Microsoft's binary distribution terms or any third-party notices.

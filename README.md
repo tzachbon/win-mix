@@ -32,4 +32,4 @@ For local settings and error-file locations and redaction guidance, see [Diagnos
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the pinned SDK, checks, installer prerequisites, source map, and audio-probe safety. The project is distributed under the [MIT License](LICENSE); third-party notices are in [Licenses](Licenses/).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the pinned SDK, checks, installer prerequisites, source map, and audio-probe safety. The project is distributed under the [GNU GPL v3.0](LICENSE) (`GPL-3.0-only`); third-party notices are in [Licenses](Licenses/).
