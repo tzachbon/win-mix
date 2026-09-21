@@ -8,7 +8,7 @@
 AppId={{724DA822-9BEC-4E81-8487-2C267218221A}
 AppName=Win Mix
 AppVersion={#AppVersion}
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}.0
 AppPublisher=Win Mix
 DefaultDirName={localappdata}\Programs\Mix.Native
 DefaultGroupName=Win Mix
