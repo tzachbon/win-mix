@@ -78,7 +78,7 @@ Horizontal layout dbe6f2f: Main, Game, Chat and Media share one row, with extra 
 
 ## Open-source readiness implementation (2026-09-21)
 
-Status: PARTIAL product acceptance. Repository changes implement T1-T3 and the issue/PR templates from T4 of the [readiness plan](docs/plans/open-source-readiness.md). Private reporting is awaiting owner approval. T5 clean-machine and outstanding interactive scenarios remain unverified.
+Status: PARTIAL product acceptance. Repository changes implement T1-T4 of the [readiness plan](docs/plans/open-source-readiness.md). T5 clean-machine and outstanding interactive scenarios remain unverified.
 
 | Check | Evidence |
 | --- | --- |
@@ -88,7 +88,7 @@ Status: PARTIAL product acceptance. Repository changes implement T1-T3 and the i
 | Installer compilation | `build.ps1` passed with Inno Setup 7.1.0. Compiler output listed root LICENSE and every Licenses file as compressed into the installer. SHA-256: `39db9e4d49ca785badcf5f9288d2c28a48f26a0e99d382c907cddabe56839ecc`. This package was not installed or released. |
 | Genuine visual | [Mixer screenshot](docs/images/mixer.png) captured from installed 1.0.1 on Windows 11 build 26200. Window-only image inspected for private content. This confirms the displayed mixer layout, not quick-control keyboard/mute or multi-DPI behavior. |
 | Workflow boundary | New CI uses read-only permissions and credential-free checkout for PRs and pushes to main. The tag-release workflow is unchanged. Implementation `2ab6e55` passed [run 35648027204](https://github.com/tzachbon/win-mix/actions/runs/35648027204). A deliberate failing assertion on disposable PR #4 at `79c9f492fb9470e0fca2a36cf8d9a90b0884c76a` failed [run 35648037114](https://github.com/tzachbon/win-mix/actions/runs/35648037114) with exit 1. Removing it in `bc3121a1c3add32ed669c9d702aee1d246103a42` restored the exact implementation tree and passed [run 35648241275](https://github.com/tzachbon/win-mix/actions/runs/35648241275). The disposable PR was closed without merging. |
-| Reporting | Issue and PR templates added. Both issue forms rendered correctly in GitHub's branch-file Preview, including required fields. Private reporting remains disabled pending exact owner approval, so SECURITY.md is not yet published. |
+| Reporting | Issue and PR templates added. Both issue forms rendered correctly in GitHub's branch-file Preview, including required fields. After owner approval, private vulnerability reporting was enabled and the repository API returned `enabled: true`. The signed-in `/security/advisories/new` page displayed its private advisory form; no report was submitted. [SECURITY.md](SECURITY.md) documents the private route, latest-release scope and diagnostic redaction. |
 | Independent review | Separate fresh-context planning and post-change reviews in isolated checkouts passed. The post-change review covered implementation `2ab6e55` with no P0-P2 findings. |
 
-Windows Sandbox is absent on this host. No fresh clean-machine, physical unplug/reconnect, sign-in, interactive installer Retry/Cancel, theme, or multi-monitor/DPI result is claimed. Earlier runtime evidence above remains historical. Build/notice checks do not close these acceptance gaps.
+Windows Sandbox is absent on this host, and the current shell lacks permission to enumerate Hyper-V VMs. Owner approval does not remove those environment limits. No fresh clean-machine, physical unplug/reconnect, sign-in, interactive installer Retry/Cancel, theme, or multi-monitor/DPI result is claimed. Earlier runtime evidence above remains historical. Build/notice checks do not close these acceptance gaps.

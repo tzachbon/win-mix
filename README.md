@@ -20,7 +20,7 @@ This build is unsigned, so Windows may show a reputation warning.
 
 ## Support
 
-Use the [GitHub issue templates](https://github.com/tzachbon/win-mix/issues/new/choose) for ordinary bug reports and feature requests. Do not post credentials, device IDs, personal paths, or unredacted diagnostics. Private security reporting is not currently configured; do not post sensitive security details in public issues.
+Use the [GitHub issue templates](https://github.com/tzachbon/win-mix/issues/new/choose) for ordinary bug reports and feature requests. Do not post credentials, device IDs, personal paths, or unredacted diagnostics. Report suspected vulnerabilities privately using the instructions in [SECURITY.md](SECURITY.md).
 
 For local settings and error-file locations and redaction guidance, see [Diagnostics](CONTRIBUTING.md#diagnostics).
 
