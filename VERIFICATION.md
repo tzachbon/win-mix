@@ -23,11 +23,11 @@ Measured on 2026-09-21:
 | Final local state | Reinstalled and restored the user's device preferences. Current audio levels and Sonar routing were not restored from settings or changed by installation. |
 | Shortcut onboarding | User confirmed the bottom-center popup appears and the tutorial card disappears on first use. |
 | Onboarding persistence | Saved HasUsedShortcut=true survived the later installer updates and process restart. |
-| Final package | Clean build and installer compilation passed at commit bd8e3ce. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
+| Final package | Clean build and installer compilation passed at commit dbe6f2f. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
 | Main selection | Pure tests verify Main → Game → Chat → Media order and clamps at both ends. Main uses the existing Master endpoint key. Hover uses each measured card rectangle. |
 | Startup override | Parser tests cover missing, enabled, disabled, unknown and malformed approval. A scoped registry probe verified disabled readback, explicit re-enable and disable, then restored the original app-owned values in finally. |
 
-Final installer SHA-256: `BEC70ED914CEC47E6DC6D858E8D3CDE97BC751EAE0257418F7AF776DB37DE44B`.
+Final installer SHA-256: `6EB6CC6237DBE49C27FDAE227A1056F2C0272220991A275CAF51D911B3FDD4D3`.
 
 ## Remaining acceptance checks
 
@@ -63,3 +63,5 @@ Windows Sandbox is not installed on the development machine. Clean-machine accep
 - [Inno Setup per-user installation](https://jrsoftware.org/ishelp/topic_setup_privilegesrequired.htm)
 
 Branding update bd8e3ce: popup padding and both header icons built and installed successfully. The PNG is indexed in the PRI, and its installed hash matches the source asset. Preferences were preserved. Final appearance remains a manual check.
+
+Horizontal layout dbe6f2f: Main, Game, Chat and Media share one row, with extra space after Main. Clean build and installer passed, settings were preserved, and the installed process started quietly. Final popup appearance remains a manual check.
