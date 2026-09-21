@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -156,6 +157,8 @@ public sealed class MixerWindow : Window
         AutomationProperties.SetName(startupToggle, "Start Win Mix with Windows");
         startupToggle.Toggled += (_, _) => { if (!rendering) StartupChanged?.Invoke(startupToggle.IsOn); };
         content.Children.Add(startupToggle);
+        var version = typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+        content.Children.Add(MixVisuals.Caption($"Win Mix · Version {version}", new Thickness(0, 12, 0, 0)));
         return new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     }
 
