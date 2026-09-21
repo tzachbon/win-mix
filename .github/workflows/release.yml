@@ -1,0 +1,71 @@
+name: Release installer
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2025
+    outputs:
+      version: ${{ steps.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Install verified Inno Setup 7.1.0
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne '0362A383ED217D4C4239B5933866DD96D3EB2102737DA92F80F6057A4B40DF2F') { throw 'Inno Setup checksum mismatch.' }
+          $directory = Join-Path $env:RUNNER_TEMP 'inno'
+          $process = Start-Process $setup -ArgumentList "/CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$directory`"" -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Inno Setup installation failed.' }
+      - name: Test and build versioned installer
+        id: build
+        shell: pwsh
+        run: |
+          ./Tests/ReleaseChecks.ps1
+          ./build.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release') -ExpectedTag $env:GITHUB_REF_NAME
+          [xml]$properties = Get-Content Directory.Build.props -Raw
+          "version=$($properties.Project.PropertyGroup.Version)" >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installer
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe
+            ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: installer
+          path: release
+      - name: Verify and publish release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          installer="win-mix-Setup-$VERSION-x64.exe"
+          sha256sum --check "$installer.sha256"
+          gh release create "$TAG" --verify-tag --title "Win Mix $VERSION" --generate-notes "$installer" "$installer.sha256"

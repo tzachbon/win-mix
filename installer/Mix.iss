@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #error AppVersion must be supplied by build.ps1
 #endif
 #ifndef PublishDir
   #define PublishDir "..\publish"
@@ -8,6 +8,7 @@
 AppId={{724DA822-9BEC-4E81-8487-2C267218221A}
 AppName=Win Mix
 AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
 AppPublisher=Win Mix
 DefaultDirName={localappdata}\Programs\Mix.Native
 DefaultGroupName=Win Mix

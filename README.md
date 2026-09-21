@@ -2,7 +2,7 @@
 
 A small native Windows tray mixer for the existing SteelSeries Sonar Gaming, Chat and Media outputs. Windows 10 version 2004 or newer, x64.
 
-Run `win-mix-Setup-1.0.0-x64.exe`. Installation is per user. The installer includes the application runtimes. Start with Windows is checked on the first installation. Later installers preserve your preference. Remove Win Mix from Windows Settings > Apps > Installed apps.
+Download the installer from the [latest release](https://github.com/tzachbon/win-mix/releases/latest). Installation is per user. The installer includes the application runtimes. Start with Windows is checked on the first installation. Later installers preserve your preference. Remove Win Mix from Windows Settings > Apps > Installed apps.
 
 Hold **Left Ctrl + Left Alt** to show quick controls at the bottom center of the current monitor. Hover a channel or press Left/Right to select it. Scroll or press Up/Down to change its volume by two percentage points. Press M to toggle mute. Release either modifier to hide the controls. Escape dismisses them. Release the keys before starting another gesture.
 
@@ -24,7 +24,7 @@ Install the .NET SDK version pinned in `global.json` and Inno Setup 7.1.0. From 
 ./build.ps1 -Dotnet dotnet -InnoCompiler 'C:\path\to\ISCC.exe'
 ```
 
-The script runs the deterministic tests, publishes self-contained application files and creates the installer in the parent output folder. Exact NuGet dependencies are recorded in `packages.lock.json`.
+The script runs the deterministic tests, publishes self-contained application files and creates the installer and SHA-256 sidecar in the parent output folder. Use `-OutputDirectory` to choose another folder. Exact NuGet dependencies are recorded in `packages.lock.json`.
 
 ```powershell
 dotnet run --project Tests/GestureTests.csproj -c Release
@@ -35,6 +35,19 @@ The audio probe is read-only by default. See its source for the explicit exercis
 
 The application uses WinUI 3, Windows Core Audio through NAudio, native tray and input APIs, and the current user's Windows startup registration. No service, driver, account, updater, or browser runtime is required.
 
-This private build is unsigned. Windows may show a reputation warning.
+This build is unsigned. Windows may show a reputation warning.
+
+## Release
+
+`Directory.Build.props` is the single version source for the app, Settings and installer. Use three numeric components such as `1.0.1`.
+
+To release, update that file, commit and push the changes, then push a matching tag:
+
+```powershell
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+Replace `1.0.1` with the new version. The `Release installer` workflow rejects mismatched tags, runs tests, builds a self-contained x64 installer and publishes a GitHub release with the EXE and its `.sha256` checksum. It uses the repository's built-in Actions token. No personal access token or separate runtime installation is needed.
 
 
