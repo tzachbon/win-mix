@@ -22,15 +22,27 @@ Measured on 2026-09-21:
 | Busy instance | A held instance marker made silent installer exit 7 before changing the installed executable hash. Interactive Retry/Cancel remains untested. |
 | Final local state | Reinstalled and restored the user's device preferences. Current audio levels and Sonar routing were not restored from settings or changed by installation. |
 | Shortcut onboarding | User confirmed the bottom-center popup appears and the tutorial card disappears on first use. |
+| Onboarding persistence | Saved HasUsedShortcut=true survived the later installer updates and process restart. |
+| Final package | Clean build and installer compilation passed at commit 877d84c. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
+| Main selection | Pure tests verify Main → Game → Chat → Media order and clamps at both ends. Main uses the existing Master endpoint key. Hover uses each measured card rectangle. |
+| Startup override | Parser tests cover missing, enabled, disabled, unknown and malformed approval. A scoped registry probe verified disabled readback, explicit re-enable and disable, then restored the original app-owned values in finally. |
+
+Final installer SHA-256: `485F2EC781CBDE7F462A358116C2323C82D0F06F479C41AB90DB70DCB5E58602`.
 
 ## Remaining acceptance checks
 
 - Clean Windows environment with no development tools. Windows Sandbox is unavailable here.
 - Latest native appearance, actual app icons, light/dark theme, keyboard accessibility and multiple DPI/monitor layouts need interactive confirmation.
-- Selected-channel M mute and tutorial dismissal after a later restart need final interactive confirmation. First-use dismissal and popup placement were confirmed by the user.
+- Selected-channel M mute needs final interactive confirmation. First-use dismissal and popup placement were confirmed by the user. Saved dismissal survived restart.
 - Physical device unplug/reconnect and real session expiration/removal.
 - Sign-in launch and interactive installer Retry/Cancel.
-- Independent post-implementation review pending.
+- New Main-row hover/keyboard/mute integration and latest clipping fix await visual confirmation.
+
+## Independent review
+
+Separate fresh-context Sol xhigh review in an isolated Git worktree passed code at 877d84c after fixes for stale publish files and Windows startup approval handling. No remaining code blocker was found. This is separate from the outstanding product acceptance checks above.
+
+Windows' StartupApproved registry format is undocumented. The app recognizes the observed 12-byte enabled states 2 and 6, treats unknown values as off, and only clears its own marker when the user explicitly enables startup. Normal launches and upgrades do not reset it. [First-hand Windows registry observations](https://windowsir.blogspot.com/2022/07/startupapprovedrun-pt-ii.html) describe the independent approval marker and its lifecycle.
 
 ## Acceptance boundary
 
@@ -45,6 +57,7 @@ Windows Sandbox is not installed on the development machine. Clean-machine accep
 ## References
 
 - [WinUI 3](https://learn.microsoft.com/en-us/windows/apps/winui/winui3/)
+- [Native WinUI TitleBar control](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/title-bar)
 - [Self-contained unpackaged Windows App SDK deployment](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/unpackage-winui-app)
 - [Windows kernel object namespaces](https://learn.microsoft.com/en-us/windows/win32/termserv/kernel-object-namespaces)
 - [Inno Setup per-user installation](https://jrsoftware.org/ishelp/topic_setup_privilegesrequired.htm)
