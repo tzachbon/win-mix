@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
 using Mix.Core;
 using Mix.Platform;
 using Windows.Graphics;
@@ -16,6 +17,7 @@ namespace Mix.UI;
 public sealed class MixerWindow : Window
 {
     readonly AppWindow appWindow;
+    readonly TitleBar titleBar = new() { Height = 32 };
     readonly Grid mixerView = new();
     readonly Grid settingsView = new();
     readonly StackPanel sessionPanel = new() { Spacing = 12 };
@@ -50,6 +52,10 @@ public sealed class MixerWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(hwnd));
         appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(titleBar);
+        titleBar.Loaded += (_, _) => UpdateCaptionColors();
+        titleBar.ActualThemeChanged += (_, _) => UpdateCaptionColors();
         appWindow.Closing += (_, args) =>
         {
             if (destroying) return;
@@ -58,10 +64,22 @@ public sealed class MixerWindow : Window
         };
     }
 
+    void UpdateCaptionColors()
+    {
+        var caption = appWindow.TitleBar;
+        caption.ButtonBackgroundColor = Colors.Transparent;
+        caption.ButtonInactiveBackgroundColor = Colors.Transparent;
+        if (titleBar.Foreground is SolidColorBrush foreground)
+        {
+            caption.ButtonForegroundColor = foreground.Color;
+            caption.ButtonInactiveForegroundColor = foreground.Color;
+        }
+    }
+
     Grid BuildUi()
     {
         var root = MixVisuals.Root();
-        root.Padding = new Thickness(24);
+        root.Padding = new Thickness(24, 8, 24, 24);
         root.RowSpacing = 16;
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -104,7 +122,13 @@ public sealed class MixerWindow : Window
         root.Children.Add(settingsView);
         Grid.SetRow(mixerView, 2);
         Grid.SetRow(settingsView, 2);
-        return root;
+        var shell = MixVisuals.Root();
+        shell.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        shell.Children.Add(titleBar);
+        Grid.SetRow(root, 1);
+        shell.Children.Add(root);
+        return shell;
     }
 
     UIElement BuildSettings()

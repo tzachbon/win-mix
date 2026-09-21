@@ -25,6 +25,7 @@
     <Content Include="Licenses\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!-- .NET 10 publish omits application PRI/XBF: WindowsAppSDK issue #6720. -->
   <Target Name="PublishWinUIResources" AfterTargets="Publish">
     <ItemGroup>
       <WinUIResource Include="$(OutDir)$(AssemblyName).pri;$(OutDir)App.xbf" />

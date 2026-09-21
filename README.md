@@ -10,6 +10,8 @@ The tray menu opens **Mixer**, **Settings**, or exits. Closing the mixer keeps W
 
 Levels are read from Windows. Muting preserves the volume. Changing volume preserves mute. Settings contain device IDs and the last selected channel, never saved audio levels. Headset dial integration, game-specific overlay compatibility and Sonar's internal mixer synchronization are outside this version.
 
+The main window shows a shortcut tutorial card until you first open the quick controls. That dismissal is remembered. Session rows use the application's Windows icon when available. The generated app icon and its prompt are in `Assets`.
+
 ## Build
 
 Install the .NET SDK version pinned in `global.json` and Inno Setup 7.1.0. From this folder:

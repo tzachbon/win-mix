@@ -1,0 +1,5 @@
+Tool: image_gen.imagegen, new image generation. Converted to multi-resolution ICO with System.Drawing.
+Outputs: app-icon.png and app.ico (16, 24, 32, 48, 64, 128, 256 pixels).
+
+Prompt:
+Use case: logo-brand. Create a single finished Windows 11 desktop application icon for 'Win Mix', a three-channel audio mixer. No text or letters. A bold simple mark of three vertical audio faders with round slider knobs at different heights, forming a subtly rhythmic W silhouette. Refined Microsoft Fluent app-icon aesthetic: vivid azure-to-indigo rounded-square tile with restrained glass depth, bright icy-white slider marks, crisp simple geometry and generous internal spacing. Attractive, confident and premium, readable at 16px. Front-on straight view, no perspective. One icon only, centered on a genuinely transparent square canvas, icon occupies about 90 percent of canvas. No mockup, no cast shadow outside the tile, no watermark, no extra objects. Production-ready app-icon asset.
