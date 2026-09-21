@@ -14,7 +14,6 @@ try {
         @($version.Split('.') | Where-Object { [int]$_ -gt 65535 }).Count) {
         throw 'Version must contain three integers from 0 to 65535 without leading zeros.'
     }
-    if ($ExpectedTag -and $ExpectedTag -cne "v$version") { throw "Tag must be v$version." }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     $installer = Join-Path $OutputDirectory "win-mix-Setup-$version-x64.exe"
     # Remove previous success markers so a failed retry cannot leave stale evidence.
@@ -22,6 +21,7 @@ try {
     foreach ($sidecar in $sidecars) {
         if (Test-Path -LiteralPath $sidecar) { Remove-Item -LiteralPath $sidecar -Force }
     }
+    if ($ExpectedTag -and $ExpectedTag -cne "v$version") { throw "Tag must be v$version." }
     & $Dotnet run --project Tests/GestureTests.csproj -c Release
     if ($LASTEXITCODE) { throw 'Gesture tests failed.' }
     & $Dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
@@ -35,9 +35,7 @@ try {
     }
     & $Dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true
     if ($LASTEXITCODE) { throw 'Publish failed.' }
-    foreach ($resource in 'win-mix.pri', 'App.xbf', 'Assets/app.ico', 'Assets/app-icon.png') {
-        if (!(Test-Path (Join-Path publish $resource))) { throw "Missing published resource: $resource" }
-    }
+    & (Join-Path $PSScriptRoot 'Tests/PublishChecks.ps1') -PublishDirectory $publishPath
     $appVersion = (Get-Item 'publish/win-mix.dll').VersionInfo.ProductVersion.Split('+')[0]
     if ($appVersion -ne $version) { throw "Application version mismatch: $appVersion" }
     $applicationScan = & (Join-Path $PSScriptRoot 'scan-release.ps1') -Path $publishPath

@@ -6,14 +6,24 @@ try {
     foreach ($version in '1.0.1', '01.0.1', '1.0', '1.0.65536', '1.0.1-preview', '1.0.1;bad') {
         Set-Content (Join-Path $scratch 'Directory.Build.props') "<Project><PropertyGroup><Version>$version</Version></PropertyGroup></Project>"
         $expected = if ($version -eq '1.0.1') { 'Tag must be v1.0.1.' } else { 'Version must contain three integers from 0 to 65535 without leading zeros.' }
+        if ($version -eq '1.0.1') {
+            Set-Content (Join-Path $scratch 'win-mix-Setup-1.0.1-x64.exe.sha256') 'stale'
+            Set-Content (Join-Path $scratch 'win-mix-Setup-1.0.1-x64.exe.defender.json') 'stale'
+        }
         $message = ''
-        try { & (Join-Path $scratch 'build.ps1') -ExpectedTag 'v9.9.9' -Dotnet 'must-not-run' }
+        try { & (Join-Path $scratch 'build.ps1') -ExpectedTag 'v9.9.9' -Dotnet 'must-not-run' -OutputDirectory $scratch }
         catch { $message = $_.Exception.Message }
         if ($message -cne $expected) { throw "Release guard failed for '$version': $message" }
+        if ((Test-Path (Join-Path $scratch 'win-mix-Setup-1.0.1-x64.exe.sha256')) -or
+            (Test-Path (Join-Path $scratch 'win-mix-Setup-1.0.1-x64.exe.defender.json'))) { throw 'Tag failure left stale success markers.' }
     }
     Write-Output 'Release version/tag guards passed before build execution.'
 
     Set-Content (Join-Path $scratch 'Directory.Build.props') '<Project><PropertyGroup><Version>1.0.1</Version></PropertyGroup></Project>'
+    New-Item (Join-Path $scratch 'Tests'), (Join-Path $scratch 'Licenses') -ItemType Directory | Out-Null
+    Copy-Item (Join-Path $PSScriptRoot 'PublishChecks.ps1') (Join-Path $scratch 'Tests/PublishChecks.ps1')
+    Set-Content (Join-Path $scratch 'LICENSE') 'fixture license'
+    Set-Content (Join-Path $scratch 'Licenses/notice.txt') 'fixture notice'
     Set-Content (Join-Path $scratch 'fixture.dll') 'harmless package fixture'
     function Get-Item {
         param([string]$Path, [string]$LiteralPath, [switch]$Force)
@@ -33,6 +43,8 @@ try {
 if ($args[0] -eq 'publish') {
     New-Item 'publish/Assets' -ItemType Directory -Force | Out-Null
     Copy-Item 'fixture.dll' 'publish/win-mix.dll'
+    Copy-Item 'LICENSE' 'publish/LICENSE'
+    Copy-Item 'Licenses' 'publish' -Recurse
     foreach ($file in 'win-mix.pri', 'App.xbf', 'Assets/app.ico', 'Assets/app-icon.png') {
         Set-Content (Join-Path 'publish' $file) 'fixture'
     }
