@@ -93,6 +93,8 @@ Status: PARTIAL product acceptance. Repository changes implement T1-T4 of the [r
 
 Windows Sandbox is absent on this host, and the current shell lacks permission to enumerate Hyper-V VMs. Owner approval does not remove those environment limits. No fresh clean-machine, physical unplug/reconnect, sign-in, interactive installer Retry/Cancel, theme, or multi-monitor/DPI result is claimed. Earlier runtime evidence above remains historical. Build/notice checks do not close these acceptance gaps.
 
+After integrating `main` through `1f32195`, the combined readiness tree at `ade5a7f` passed release guards, gesture tests, all 94 updater assertions, locked publication and all 15 license-file checks. CI and the contributor checklist now include the updater tests. A fresh full Inno Setup 7.1.0 build produced version 1.0.3 with SHA-256 `e0de43c21b475b5f4693ae83caaf532e770b19b1a9e2441dbf37e0e0d2f99ddd`; this readiness package was not installed or released. A separate isolated review of the enabled reporting setting and security-documentation changes passed.
+
 ## Manual updater implementation (2026-09-21)
 
 - Added manual Settings checks, bounded verified downloads, cancellation, registered-installation gating, and the existing Inno shutdown/reopen handoff. Automatic checks remain deferred.
