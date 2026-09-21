@@ -23,11 +23,11 @@ Measured on 2026-09-21:
 | Final local state | Reinstalled and restored the user's device preferences. Current audio levels and Sonar routing were not restored from settings or changed by installation. |
 | Shortcut onboarding | User confirmed the bottom-center popup appears and the tutorial card disappears on first use. |
 | Onboarding persistence | Saved HasUsedShortcut=true survived the later installer updates and process restart. |
-| Final package | Clean build and installer compilation passed at commit dbe6f2f. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
+| Final package | Clean build and installer compilation passed at commit 364a883. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
 | Main selection | Pure tests verify Main → Game → Chat → Media order and clamps at both ends. Main uses the existing Master endpoint key. Hover uses each measured card rectangle. |
 | Startup override | Parser tests cover missing, enabled, disabled, unknown and malformed approval. A scoped registry probe verified disabled readback, explicit re-enable and disable, then restored the original app-owned values in finally. |
 
-Final installer SHA-256: `6EB6CC6237DBE49C27FDAE227A1056F2C0272220991A275CAF51D911B3FDD4D3`.
+Final installer SHA-256: `A14EAB3A602C7FC155D09F01E6BCD59BFFB639ADF4552819377C37A1CE4E3C37`.
 
 ## Remaining acceptance checks
 
