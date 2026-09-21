@@ -79,7 +79,7 @@ public sealed class MixerWindow : Window
     Grid BuildUi()
     {
         var root = MixVisuals.Root();
-        root.Padding = new Thickness(24, 8, 24, 24);
+        root.Padding = new Thickness(32, 12, 32, 32);
         root.RowSpacing = 16;
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -104,7 +104,7 @@ public sealed class MixerWindow : Window
         root.Children.Add(errorText);
         Grid.SetRow(errorText, 1);
 
-        var mixerContent = new StackPanel { Spacing = 8 };
+        var mixerContent = new StackPanel { Spacing = 12, Margin = new Thickness(0, 0, 14, 8) };
         mixerContent.Children.Add(shortcutCard);
         foreach (var key in MixRules.Channels)
         {
