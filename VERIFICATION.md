@@ -23,11 +23,11 @@ Measured on 2026-09-21:
 | Final local state | Reinstalled and restored the user's device preferences. Current audio levels and Sonar routing were not restored from settings or changed by installation. |
 | Shortcut onboarding | User confirmed the bottom-center popup appears and the tutorial card disappears on first use. |
 | Onboarding persistence | Saved HasUsedShortcut=true survived the later installer updates and process restart. |
-| Final package | Clean build and installer compilation passed at commit 877d84c. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
+| Final package | Clean build and installer compilation passed at commit bd8e3ce. A planted obsolete file was removed before packaging in the earlier regression check. Final installed app launched successfully and preserved the settings hash. |
 | Main selection | Pure tests verify Main → Game → Chat → Media order and clamps at both ends. Main uses the existing Master endpoint key. Hover uses each measured card rectangle. |
 | Startup override | Parser tests cover missing, enabled, disabled, unknown and malformed approval. A scoped registry probe verified disabled readback, explicit re-enable and disable, then restored the original app-owned values in finally. |
 
-Final installer SHA-256: `485F2EC781CBDE7F462A358116C2323C82D0F06F479C41AB90DB70DCB5E58602`.
+Final installer SHA-256: `BEC70ED914CEC47E6DC6D858E8D3CDE97BC751EAE0257418F7AF776DB37DE44B`.
 
 ## Remaining acceptance checks
 
@@ -61,3 +61,5 @@ Windows Sandbox is not installed on the development machine. Clean-machine accep
 - [Self-contained unpackaged Windows App SDK deployment](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/unpackage-winui-app)
 - [Windows kernel object namespaces](https://learn.microsoft.com/en-us/windows/win32/termserv/kernel-object-namespaces)
 - [Inno Setup per-user installation](https://jrsoftware.org/ishelp/topic_setup_privilegesrequired.htm)
+
+Branding update bd8e3ce: popup padding and both header icons built and installed successfully. The PNG is indexed in the PRI, and its installed hash matches the source asset. Preferences were preserved. Final appearance remains a manual check.
