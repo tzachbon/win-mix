@@ -159,9 +159,12 @@ public sealed class OverlayWindow : Window
             tiles[i].IsChecked = MixRules.QuickOrder[i] == selected;
             AutomationProperties.SetName(tiles[i], $"{names[i].Text}, {values[i].Text}, {muteStates[i].Text}");
         }
+        var previousErrorVisibility = errorText.Visibility;
         errorText.Text = state.Error ?? "";
         errorText.Visibility = string.IsNullOrWhiteSpace(state.Error) ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetName(errorText, state.Error ?? "");
+        if (previousErrorVisibility != errorText.Visibility && appWindow.IsVisible)
+            BoundsChanged?.Invoke(ShowAtBottom());
     });
 
     internal Native.Rect[] ShowAtBottom()
