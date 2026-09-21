@@ -33,3 +33,7 @@ For local settings and error-file locations and redaction guidance, see [Diagnos
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the pinned SDK, checks, installer prerequisites, source map, and audio-probe safety. The project is distributed under the [GNU GPL v3.0](LICENSE) (`GPL-3.0-only`); third-party notices are in [Licenses](Licenses/).
+
+## Release
+
+See [contributing and releasing](docs/releases.md) for PR title rules, versioning, the paused release pipeline, and recovery. `VERSION` is the application and installer version source.

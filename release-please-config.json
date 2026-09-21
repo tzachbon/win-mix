@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "6d48b221f297573f8f0e05ffc29a5aff5e1ba626",
+  "release-type": "simple",
+  "version-file": "VERSION",
+  "changelog-path": "CHANGELOG.md",
+  "include-v-in-tag": true,
+  "include-v-in-release-name": true,
+  "include-component-in-tag": false,
+  "prerelease": false,
+  "draft": true,
+  "force-tag-creation": true,
+  "separate-pull-requests": false,
+  "pull-request-title-pattern": "chore(main): release ${version}",
+  "group-pull-request-title-pattern": "chore(main): release ${version}",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "build", "section": "Build System", "hidden": true },
+    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "refactor", "section": "Code Refactoring", "hidden": true },
+    { "type": "revert", "section": "Reverts", "hidden": true },
+    { "type": "style", "section": "Styles", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true }
+  ],
+  "packages": {
+    ".": {}
+  }
+}
