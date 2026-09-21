@@ -44,15 +44,4 @@ This build is unsigned. Windows may show a reputation warning.
 
 ## Release
 
-`Directory.Build.props` is the single version source for the app, Settings and installer. Use three numeric components such as `1.0.1`.
-
-To release, update that file, commit and push the changes, then push a matching tag:
-
-```powershell
-git tag v1.0.1
-git push origin v1.0.1
-```
-
-Replace `1.0.1` with the new version. The `Release installer` workflow rejects mismatched tags, runs tests, builds a self-contained x64 installer and publishes a GitHub release with the EXE and its `.sha256` checksum. It uses the repository's built-in Actions token. No personal access token or separate runtime installation is needed.
-
-
+See [contributing and releasing](docs/releases.md) for PR title rules, versioning, the paused release pipeline, and recovery. `VERSION` is the application and installer version source.
