@@ -1,5 +1,17 @@
 # Verification
 
+## Main controls investigation: issue #5
+
+Status: PARTIAL, no production fix. [Issue #5](https://github.com/tzachbon/win-mix/issues/5) tracks the reported popup failure.
+
+On 2026-09-21, checkout `6702036` and installed version `1.0.1+5117b36` had identical relevant popup, command-dispatch and audio-service code. The application build passed with zero warnings/errors using the existing local .NET 10.0.401 SDK. Gesture tests and read-only endpoint discovery passed.
+
+The audio exercise now includes Master in endpoint adjustment, mute, independence and restoration checks. The live run passed Game, Chat and Media adjustments, then failed with `Timed out waiting for Master level adjustment.` Cleanup reported `restore=PASS channels=4 serviceErrors=0`. This run stopped before the mute exercise loop, so it does not prove popup or service mute behavior.
+
+A separate direct NAudio diagnostic on the configured Arctis headset endpoint reported a 0–0 dB volume range. Writing scalar volume 0.96 read back as 1.0 both immediately and after 200 ms. Direct mute toggled successfully and was restored. Subsequent read-only verification confirmed original states: Game 50%, Chat/Media/Master 100%, all unmuted.
+
+The endpoint volume failure is reproduced independently of popup input. Its underlying driver/hardware cause is not established. Direct mute works, but the reported popup M failure and real-input acceptance remain unverified. Do not substitute another endpoint, change routing, or introduce software master-volume behavior without revising the approved scope.
+
 Status: PARTIAL acceptance. Build, audio readback and installation lifecycle passed on the development machine. Clean-machine and final interactive checks remain below.
 
 Measured on 2026-09-21:
