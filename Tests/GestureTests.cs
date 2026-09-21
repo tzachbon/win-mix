@@ -15,6 +15,7 @@ internal static class GestureTests
 
     private static int Main()
     {
+        Is(true, false, "Deliberate CI failure-propagation proof on disposable branch");
         ModifierOrderActivates();
         AltGrDoesNotActivate();
         InitializeHeldWaitsForNeutral();
