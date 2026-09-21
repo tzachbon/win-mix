@@ -26,6 +26,7 @@ internal static class GestureTests
         ResetPreservesOwnedKeyUpsAndWaitsForNeutral();
         WheelAccumulatesAndResetsOnDisarm();
         MixRulesRemainDeterministic();
+        StartupApprovalIsConservative();
         Console.WriteLine("Gesture state machine checks passed.");
         return 0;
     }
@@ -204,6 +205,18 @@ internal static class GestureTests
         Is(0f, MixRules.Clamp(-1), "clamp floors at zero");
         Is(1f, MixRules.Clamp(2), "clamp caps at one");
         Throws<ArgumentOutOfRangeException>(() => MixRules.Clamp(float.NaN), "clamp rejects NaN");
+    }
+
+    private static void StartupApprovalIsConservative()
+    {
+        byte[] State(uint value) { var bytes = new byte[12]; System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes, value); return bytes; }
+        Is(true, Mix.Platform.Preferences.IsStartupApproved(null), "absent approval defaults enabled");
+        foreach (uint value in new uint[] { 2, 6 })
+            Is(true, Mix.Platform.Preferences.IsStartupApproved(State(value)), "known enabled approval");
+        foreach (uint value in new uint[] { 0, 1, 3, 7, 255 })
+            Is(false, Mix.Platform.Preferences.IsStartupApproved(State(value)), "disabled or unknown approval");
+        Is(false, Mix.Platform.Preferences.IsStartupApproved(new byte[] { 2 }), "truncated approval");
+        Is(false, Mix.Platform.Preferences.IsStartupApproved("2"), "wrong approval type");
     }
 
     private static Gesture Armed()

@@ -22,11 +22,28 @@ sealed class Preferences
         File.Move(FilePath+".tmp",FilePath,true);
     }
     const string RunKey="Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    public static bool StartupEnabled { get { using var key=Registry.CurrentUser.OpenSubKey(RunKey); return key?.GetValue("Mix.Native") is string; } }
+    const string ApprovalKey="Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
+    public static bool StartupEnabled
+    {
+        get
+        {
+            using var key=Registry.CurrentUser.OpenSubKey(RunKey);
+            using var approval=Registry.CurrentUser.OpenSubKey(ApprovalKey);
+            return key?.GetValue("Mix.Native") is string && IsStartupApproved(approval?.GetValue("Mix.Native"));
+        }
+    }
+    // Windows stores a DWORD state followed by a timestamp. Unknown states stay off.
+    internal static bool IsStartupApproved(object? value) => value == null ||
+        value is byte[] { Length: 12 } bytes && System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(bytes) is 2 or 6;
     public static void SetStartup(bool enabled)
     {
         using var key=Registry.CurrentUser.CreateSubKey(RunKey);
-        if(enabled) key.SetValue("Mix.Native",$"\"{Environment.ProcessPath}\" --background");
+        if(enabled)
+        {
+            using var approval=Registry.CurrentUser.OpenSubKey(ApprovalKey,true);
+            approval?.DeleteValue("Mix.Native",false);
+            key.SetValue("Mix.Native",$"\"{Environment.ProcessPath}\" --background");
+        }
         else key.DeleteValue("Mix.Native",false);
     }
 }
