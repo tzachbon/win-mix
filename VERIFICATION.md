@@ -65,3 +65,13 @@ Windows Sandbox is not installed on the development machine. Clean-machine accep
 Branding update bd8e3ce: popup padding and both header icons built and installed successfully. The PNG is indexed in the PRI, and its installed hash matches the source asset. Preferences were preserved. Final appearance remains a manual check.
 
 Horizontal layout dbe6f2f: Main, Game, Chat and Media share one row, with extra space after Main. Clean build and installer passed, settings were preserved, and the installed process started quietly. Final popup appearance remains a manual check.
+## Release 1.0.1 (2026-09-21)
+
+- Shared version source: `Directory.Build.props`. App informational version is `1.0.1+5117b36bfb5bada24e9bf8624ba018a089ebce0c`; app and installer file versions are `1.0.1.0`.
+- Fresh independent planning and post-implementation reviews passed. Post-review covered `77f60c0..5117b36` with no P0-P2 findings.
+- Local clean build, gesture tests, release version/tag guard checks, binary metadata checks and `sha256sum --check` passed.
+- [GitHub Actions run 35643636732](https://github.com/tzachbon/win-mix/actions/runs/35643636732) built and published [v1.0.1](https://github.com/tzachbon/win-mix/releases/tag/v1.0.1) from `5117b36bfb5bada24e9bf8624ba018a089ebce0c`. Both jobs passed. Release has exactly the installer and checksum sidecar.
+- Released installer SHA-256: `03c9d745197c453f65e54d02686eb546d62f5587cefd5e6609c3995464f2f2c5`.
+- Downloaded the hosted installer, verified its checksum/version, and upgraded the existing per-user installation. Exit code 0; settings hash, startup registration and startup approval were preserved. Installed version matched; exactly one process remained after a quiet background launch with `MainWindowHandle = 0`.
+- Made the repository public after release verification. Unauthenticated repository API access and downloads of both release assets succeeded. Public installer bytes matched the tested hosted installer and sidecar.
+- This validates the release workflow and upgrade on the development machine. The earlier clean-machine and manual UI acceptance gaps remain unchanged.
