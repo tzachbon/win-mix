@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 internal static class Program
 {
-    static readonly string[] SonarChannels = ["Game", "Chat", "Media"];
+    static readonly string[] EndpointChannels = ["Game", "Chat", "Media", "Master"];
     static readonly TimeSpan Timeout = TimeSpan.FromSeconds(8);
     readonly record struct EndpointState(float Volume, bool Muted);
 
@@ -49,17 +49,17 @@ internal static class Program
         using var enumerator = new MMDeviceEnumerator();
         var first = await NextStateAsync(service, _ => true, service.Refresh, "initial snapshot");
         var ids = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
-            var level = FindLevel(first, channel) ?? throw new InvalidOperationException($"Sonar {channel} endpoint row is missing.");
+            var level = FindLevel(first, channel) ?? throw new InvalidOperationException($"{channel} endpoint row is missing.");
             if (!level.Available || level.DeviceId is null)
-                throw new InvalidOperationException($"Sonar {channel} endpoint was not discovered.");
+                throw new InvalidOperationException($"{channel} endpoint was not discovered.");
             ids.Add(channel, level.DeviceId);
         }
-        Require(ids.Values.Distinct(StringComparer.Ordinal).Count() == SonarChannels.Length, "Sonar channels did not resolve to three distinct endpoints.");
+        Require(ids.Values.Distinct(StringComparer.Ordinal).Count() == EndpointChannels.Length, "Endpoint channels did not resolve to distinct endpoints.");
 
         var original = ReadEndpoints(enumerator, ids);
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
             var level = FindLevel(first, channel)!;
             Require(Near(level.Volume, original[channel].Volume, .003f) && level.Muted == original[channel].Muted,
@@ -70,10 +70,10 @@ internal static class Program
         try
         {
             Console.WriteLine("mode=exercise");
-            foreach (var channel in SonarChannels)
-                Console.WriteLine($"sonar channel={channel} id={ids[channel]} volume={original[channel].Volume:F3} muted={original[channel].Muted}");
+            foreach (var channel in EndpointChannels)
+                Console.WriteLine($"endpoint channel={channel} id={ids[channel]} volume={original[channel].Volume:F3} muted={original[channel].Muted}");
 
-            foreach (var channel in SonarChannels)
+            foreach (var channel in EndpointChannels)
             {
                 var before = ReadEndpoints(enumerator, ids);
                 int steps = before[channel].Volume <= .96f ? 2 : -2;
@@ -86,7 +86,7 @@ internal static class Program
                 Console.WriteLine($"adjust channel={channel} steps={steps} service={FindLevel(snapshot, channel)!.Volume:F3} independent={after[channel].Volume:F3} PASS");
             }
 
-            foreach (var channel in SonarChannels)
+            foreach (var channel in EndpointChannels)
             {
                 var before = ReadEndpoints(enumerator, ids);
                 bool expectedMute = !before[channel].Muted;
@@ -354,7 +354,7 @@ internal static class Program
         }
         catch (Exception ex) { serviceRestoreErrors.Add(ex); }
 
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
             try
             {
@@ -370,7 +370,7 @@ internal static class Program
         }
 
         var directRestoreErrors = new List<Exception>();
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
             try
             {
@@ -381,7 +381,7 @@ internal static class Program
             catch (Exception ex) { directRestoreErrors.Add(new InvalidOperationException($"Direct restore failed for {channel}: {ex.Message}", ex)); }
         }
 
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
             try
             {
@@ -393,7 +393,7 @@ internal static class Program
             catch (Exception ex) { directRestoreErrors.Add(ex); }
         }
 
-        Console.WriteLine($"restore={(directRestoreErrors.Count == 0 ? "PASS" : "FAIL")} channels={SonarChannels.Length} serviceErrors={serviceRestoreErrors.Count}");
+        Console.WriteLine($"restore={(directRestoreErrors.Count == 0 ? "PASS" : "FAIL")} channels={EndpointChannels.Length} serviceErrors={serviceRestoreErrors.Count}");
         if (directRestoreErrors.Count != 0)
             serviceRestoreErrors.AddRange(directRestoreErrors);
         if (serviceRestoreErrors.Count != 0)
@@ -403,7 +403,7 @@ internal static class Program
     static void CheckVolumeChange(string target, float expected, IReadOnlyDictionary<string, EndpointState> before,
         IReadOnlyDictionary<string, EndpointState> after)
     {
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
             if (channel == target)
             {
@@ -420,7 +420,7 @@ internal static class Program
     static void CheckMuteChange(string target, bool expectedMute, IReadOnlyDictionary<string, EndpointState> before,
         IReadOnlyDictionary<string, EndpointState> after)
     {
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
         {
             if (channel == target)
                 Require(after[channel].Muted == expectedMute && Near(after[channel].Volume, before[channel].Volume, .003f),
@@ -434,7 +434,7 @@ internal static class Program
     static void CheckUnchanged(IReadOnlyDictionary<string, EndpointState> before,
         IReadOnlyDictionary<string, EndpointState> after, string step)
     {
-        foreach (var channel in SonarChannels)
+        foreach (var channel in EndpointChannels)
             Require(Near(after[channel].Volume, before[channel].Volume, .003f) && after[channel].Muted == before[channel].Muted,
                 $"{step} changed {channel} endpoint state.");
     }

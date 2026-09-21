@@ -26,6 +26,7 @@ public sealed class MixerWindow : Window
     readonly KeyboardSettingsView keyboardSettings = new();
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 3 };
     readonly Button settingsButton = new();
+    UpdatePanel updatePanel = null!;
     readonly InfoBar shortcutCard = new() {
         IsOpen = true, IsClosable = false, Severity = InfoBarSeverity.Informational,
         Title = "Try the quick mixer",
@@ -48,6 +49,8 @@ public sealed class MixerWindow : Window
     public event Action<string, bool>? SessionMuteChanged;
     public event Action<string, string?>? DeviceChanged;
     public event Action<bool>? StartupChanged;
+    public event Action? UpdateRequested;
+    public event Action? UpdateCanceled;
 
     public MixerWindow()
     {
@@ -168,7 +171,10 @@ public sealed class MixerWindow : Window
         startupToggle.Toggled += (_, _) => { if (!rendering) StartupChanged?.Invoke(startupToggle.IsOn); };
         content.Children.Add(startupToggle);
         var version = typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
-        content.Children.Add(MixVisuals.Caption($"Win Mix · Version {version}", new Thickness(0, 12, 0, 0)));
+        updatePanel = new UpdatePanel(version);
+        updatePanel.UpdateRequested += () => UpdateRequested?.Invoke();
+        updatePanel.UpdateCanceled += () => UpdateCanceled?.Invoke();
+        content.Children.Add(updatePanel);
         return new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     }
 
@@ -352,6 +358,8 @@ public sealed class MixerWindow : Window
     });
 
     public void SetError(string message) => OnUi(() => { preferenceError = string.IsNullOrWhiteSpace(message) ? null : message; RenderErrors(); });
+
+    internal void SetUpdateState(UpdateState value) => OnUi(() => updatePanel.SetState(value));
 
     void RenderErrors()
     {

@@ -20,6 +20,10 @@ Quick controls place **Main, Game, Chat and Media in one horizontal row**, with 
 
 The startup toggle also checks Windows' per-app approval marker. An explicit On action clears only Win Mix's marker. Normal launch and upgrades preserve it. The marker format is not a documented Windows API, so malformed or unknown states are conservatively shown as Off.
 
+In Settings, **Check for updates** checks the latest stable GitHub release only when clicked. **Update to…** downloads and verifies the installer, shows installation progress, then reopens Settings with the new version. Downloads can be canceled. Settings and startup preferences are preserved. Development builds link to the release page instead of installing. Version 1.0.1 needs one normal installer upgrade to gain this button.
+
+Updates use GitHub HTTPS release metadata, SHA-256, size and file-version checks. Installers remain unsigned. There are no automatic checks or background downloads. Failed downloads never launch; if the installer itself fails after closing Win Mix, use its error message and reopen the app or rerun the installer.
+
 ## Build
 
 Install the .NET SDK version pinned in `global.json` and Inno Setup 7.1.0. From this folder:
@@ -32,12 +36,13 @@ The script runs the deterministic tests, publishes self-contained application fi
 
 ```powershell
 dotnet run --project Tests/GestureTests.csproj -c Release
+dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
 dotnet run --project Tests/AudioProbe/AudioProbe.csproj
 ```
 
 The audio probe is read-only by default. See its source for the explicit exercise option, which temporarily changes channel levels and restores them in `finally`.
 
-The application uses WinUI 3, Windows Core Audio through NAudio, native tray and input APIs, and the current user's Windows startup registration. No service, driver, account, updater, or browser runtime is required.
+The application uses WinUI 3, Windows Core Audio through NAudio, native tray and input APIs, and the current user's Windows startup registration. No service, driver, account, background updater, or browser runtime is required.
 
 This build is unsigned. Windows may show a reputation warning.
 

@@ -17,6 +17,8 @@ try {
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     & $Dotnet run --project Tests/GestureTests.csproj -c Release
     if ($LASTEXITCODE) { throw 'Gesture tests failed.' }
+    & $Dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
+    if ($LASTEXITCODE) { throw 'Update tests failed.' }
     $publishPath = Join-Path $PSScriptRoot 'publish'
     if (Test-Path -LiteralPath $publishPath) {
         $existing = Get-Item -LiteralPath $publishPath -Force
