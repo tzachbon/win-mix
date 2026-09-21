@@ -5,6 +5,7 @@ param(
     [string]$ExpectedTag
 )
 $ErrorActionPreference = 'Stop'
+$sidecars = @()
 Push-Location $PSScriptRoot
 try {
     [xml]$properties = Get-Content (Join-Path $PSScriptRoot 'Directory.Build.props') -Raw
@@ -15,6 +16,12 @@ try {
     }
     if ($ExpectedTag -and $ExpectedTag -cne "v$version") { throw "Tag must be v$version." }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
+    $installer = Join-Path $OutputDirectory "win-mix-Setup-$version-x64.exe"
+    # Remove previous success markers so a failed retry cannot leave stale evidence.
+    $sidecars = @("$installer.sha256", "$installer.defender.json", "$installer.defender.json.tmp")
+    foreach ($sidecar in $sidecars) {
+        if (Test-Path -LiteralPath $sidecar) { Remove-Item -LiteralPath $sidecar -Force }
+    }
     & $Dotnet run --project Tests/GestureTests.csproj -c Release
     if ($LASTEXITCODE) { throw 'Gesture tests failed.' }
     & $Dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
@@ -33,10 +40,17 @@ try {
     }
     $appVersion = (Get-Item 'publish/win-mix.dll').VersionInfo.ProductVersion.Split('+')[0]
     if ($appVersion -ne $version) { throw "Application version mismatch: $appVersion" }
+    $applicationScan = & (Join-Path $PSScriptRoot 'scan-release.ps1') -Path $publishPath
     & $InnoCompiler "/DAppVersion=$version" "/O$OutputDirectory" installer/Mix.iss
     if ($LASTEXITCODE) { throw 'Installer compilation failed.' }
-    $installer = Join-Path $OutputDirectory "win-mix-Setup-$version-x64.exe"
     if ((Get-Item $installer).VersionInfo.FileVersion.Trim() -ne "$version.0") { throw 'Installer version mismatch.' }
-    $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+    $installerScan = & (Join-Path $PSScriptRoot 'scan-release.ps1') -Path $installer
+    $hash = $installerScan.Files[0].SHA256.ToLowerInvariant()
     [IO.File]::WriteAllText("$installer.sha256", "$hash  $([IO.Path]::GetFileName($installer))`n")
+    $evidence = @{ Application = $applicationScan; Installer = $installerScan } | ConvertTo-Json -Depth 6
+    [IO.File]::WriteAllText("$installer.defender.json.tmp", $evidence)
+    Move-Item -LiteralPath "$installer.defender.json.tmp" -Destination "$installer.defender.json"
+} catch {
+    foreach ($sidecar in $sidecars) { Remove-Item -LiteralPath $sidecar -Force -ErrorAction SilentlyContinue }
+    throw
 } finally { Pop-Location }

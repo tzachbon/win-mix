@@ -3,6 +3,8 @@ name: Release installer
 on:
   push:
     tags: ['v*']
+  pull_request:
+    paths: ['**/*.cs', '**/*.csproj', '**/*.props', '**/*.json', '**/*.ps1', '**/*.xaml', 'installer/**', 'Assets/**', 'Licenses/**', '.github/workflows/release.yml']
 
 permissions:
   contents: read
@@ -37,7 +39,9 @@ jobs:
         shell: pwsh
         run: |
           ./Tests/ReleaseChecks.ps1
-          ./build.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release') -ExpectedTag $env:GITHUB_REF_NAME
+          ./Tests/DefenderChecks.ps1
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'push') { $env:GITHUB_REF_NAME } else { '' }
+          ./build.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release') -ExpectedTag $tag
           [xml]$properties = Get-Content Directory.Build.props -Raw
           "version=$($properties.Project.PropertyGroup.Version)" >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -47,9 +51,11 @@ jobs:
           path: |
             ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe
             ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe.sha256
+            ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe.defender.json
 
   release:
     needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -68,4 +74,4 @@ jobs:
         run: |
           installer="win-mix-Setup-$VERSION-x64.exe"
           sha256sum --check "$installer.sha256"
-          gh release create "$TAG" --verify-tag --title "Win Mix $VERSION" --generate-notes "$installer" "$installer.sha256"
+          gh release create "$TAG" --verify-tag --title "Win Mix $VERSION" --generate-notes "$installer" "$installer.sha256" "$installer.defender.json"

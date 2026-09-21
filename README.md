@@ -30,6 +30,8 @@ Install the .NET SDK version pinned in `global.json` and Inno Setup 7.1.0. From 
 
 The script runs the deterministic tests, publishes self-contained application files and creates the installer and SHA-256 sidecar in the parent output folder. Use `-OutputDirectory` to choose another folder. Exact NuGet dependencies are recorded in `packages.lock.json`.
 
+Release builds require Microsoft Defender in normal mode with signatures updated within 48 hours. Both the unpacked application and installer must pass a custom scan before release sidecars are written. Scan errors, detections, unavailable protection or files changing during a scan fail the build. The script does not change Defender settings or remediate files. Microsoft documents the scanner as requiring an elevated shell. A `.defender.json` sidecar records scanner versions, scan times and file hashes. A passing scan describes those bytes at that time, not a guarantee against later detections. See [Microsoft's scanner documentation](https://learn.microsoft.com/en-us/defender-endpoint/command-line-arguments-microsoft-defender-antivirus).
+
 ```powershell
 dotnet run --project Tests/GestureTests.csproj -c Release
 dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
@@ -53,6 +55,6 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-Replace `1.0.1` with the new version. The `Release installer` workflow rejects mismatched tags, runs tests, builds a self-contained x64 installer and publishes a GitHub release with the EXE and its `.sha256` checksum. It uses the repository's built-in Actions token. No personal access token or separate runtime installation is needed.
+Replace `1.0.1` with the new version. The `Release installer` workflow validates relevant pull requests without publishing. On tag pushes it rejects mismatched tags, runs tests, builds and scans a self-contained x64 installer and publishes a GitHub release with the EXE, its `.sha256` checksum and `.defender.json` scan evidence. It uses the repository's built-in Actions token. No personal access token or separate runtime installation is needed.
 
 
