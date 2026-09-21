@@ -29,7 +29,7 @@ public sealed class OverlayWindow : Window
     readonly TextBlock[] muteStates = new TextBlock[4];
     readonly ProgressBar[] meters = new ProgressBar[4];
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 2 };
-    readonly Grid row = new() { ColumnSpacing = 8, RowSpacing = 16 };
+    readonly Grid row = new() { ColumnSpacing = 12, RowSpacing = 20 };
     bool destroying;
     internal event Action<Native.Rect[]>? BoundsChanged;
 
@@ -63,12 +63,20 @@ public sealed class OverlayWindow : Window
     Grid BuildUi()
     {
         var root = MixVisuals.Root();
-        root.Padding = new Thickness(16);
-        root.RowSpacing = 8;
+        root.Padding = new Thickness(24);
+        root.RowSpacing = 12;
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var brand = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 4) };
+        brand.Children.Add(MixVisuals.BrandIcon(20));
+        var brandName = MixVisuals.Caption("Win Mix");
+        brandName.VerticalAlignment = VerticalAlignment.Center;
+        brand.Children.Add(brandName);
+        root.Children.Add(brand);
         errorText.Visibility = Visibility.Collapsed;
+        Grid.SetRow(errorText, 1);
         root.Children.Add(errorText);
 
         for (int i = 0; i < 3; i++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -115,7 +123,7 @@ public sealed class OverlayWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 VerticalContentAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(12),
+                Padding = new Thickness(16),
                 CornerRadius = new CornerRadius(8)
             };
             AutomationProperties.SetName(tiles[i], ChannelKeys[i]);
@@ -125,11 +133,11 @@ public sealed class OverlayWindow : Window
             if (i == 0) Grid.SetColumnSpan(tiles[i], 3);
             row.Children.Add(tiles[i]);
         }
-        Grid.SetRow(row, 1);
+        Grid.SetRow(row, 2);
         root.Children.Add(row);
         var hint = MixVisuals.Caption("← → select   ·   Scroll / ↑ ↓ volume   ·   M mute");
         hint.HorizontalAlignment = HorizontalAlignment.Center;
-        Grid.SetRow(hint, 2);
+        Grid.SetRow(hint, 3);
         root.Children.Add(hint);
         return root;
     }
@@ -170,8 +178,8 @@ public sealed class OverlayWindow : Window
     internal Native.Rect[] ShowAtBottom()
     {
         var root = (Grid)Content;
-        root.Measure(new Windows.Foundation.Size(460, double.PositiveInfinity));
-        var bounds = WindowPlacement.Fit(460, Math.Max(280, (int)Math.Ceiling(root.DesiredSize.Height)), false);
+        root.Measure(new Windows.Foundation.Size(500, double.PositiveInfinity));
+        var bounds = WindowPlacement.Fit(500, Math.Max(280, (int)Math.Ceiling(root.DesiredSize.Height)), false);
         ShowAt(bounds);
         root.UpdateLayout();
         return TileBounds();

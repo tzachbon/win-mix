@@ -16,7 +16,7 @@ try {
     }
     & $Dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true
     if ($LASTEXITCODE) { throw 'Publish failed.' }
-    foreach ($resource in 'win-mix.pri', 'App.xbf', 'Assets/app.ico') {
+    foreach ($resource in 'win-mix.pri', 'App.xbf', 'Assets/app.ico', 'Assets/app-icon.png') {
         if (!(Test-Path (Join-Path publish $resource))) { throw "Missing published resource: $resource" }
     }
     & $InnoCompiler installer/Mix.iss

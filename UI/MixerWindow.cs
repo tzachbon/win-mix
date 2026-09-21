@@ -91,7 +91,10 @@ public sealed class MixerWindow : Window
         var heading = new StackPanel { Spacing = 4 };
         heading.Children.Add(new TextBlock { Text = "Win Mix", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         heading.Children.Add(MixVisuals.Caption("Your sound, in balance"));
-        header.Children.Add(heading);
+        var brand = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        brand.Children.Add(MixVisuals.BrandIcon(44));
+        brand.Children.Add(heading);
+        header.Children.Add(brand);
         settingsButton.Content = new SymbolIcon(Symbol.Setting);
         AutomationProperties.SetName(settingsButton, "Settings");
         ToolTipService.SetToolTip(settingsButton, "Settings");
@@ -363,6 +366,15 @@ public sealed class MixerWindow : Window
 
 internal static class MixVisuals
 {
+    internal static Image BrandIcon(double size)
+    {
+        var icon = new Image {
+            Width = size, Height = size, VerticalAlignment = VerticalAlignment.Center,
+            Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/app-icon.png"))
+        };
+        AutomationProperties.SetName(icon, "Win Mix");
+        return icon;
+    }
     const string Xmlns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     internal static Grid Root() => (Grid)XamlReader.Load($"<Grid xmlns='{Xmlns}' Background='{{ThemeResource ApplicationPageBackgroundThemeBrush}}' />");
     internal static Border Card() => (Border)XamlReader.Load($"<Border xmlns='{Xmlns}' Background='{{ThemeResource CardBackgroundFillColorDefaultBrush}}' BorderBrush='{{ThemeResource CardStrokeColorDefaultBrush}}' BorderThickness='1' CornerRadius='8' />");
