@@ -102,3 +102,11 @@ Windows Sandbox is absent on this host, and the current shell lacks permission t
 - Native Settings displayed the new version and Check for updates button. A real manual check correctly showed current for a development build newer than the published release. Computer Use was stopped by the user with Escape. Further interactive checks and the real updater-button upgrade remain pending.
 - These checks do not establish clean-machine installation or full native interaction acceptance.
 - Fresh isolated Sol xhigh post-implementation review passed aggregate changes 6702036..1ac5c06 after the cancellation and development-wording fixes. Clean build, publish and Inno compilation passed at 1ac5c06. Real button-driven upgrade remains the rollout acceptance gate.
+
+### Hosted updater rollout
+
+- [v1.0.2 workflow](https://github.com/tzachbon/win-mix/actions/runs/35649642387) passed and published [v1.0.2](https://github.com/tzachbon/win-mix/releases/tag/v1.0.2) from `a7b82f2`. Hosted installer SHA-256: `5e7609c6884d549ea674e9953dc65e98990668fc53265bc5bdb074802d0cdfd7`.
+- Installed the verified hosted 1.0.2 installer normally, exit 0. Settings hash, startup registration/approval, all four endpoint volumes and mute states were unchanged. One resident process, MainWindowHandle=0.
+- [v1.0.3 workflow](https://github.com/tzachbon/win-mix/actions/runs/35649854784) passed and published [v1.0.3](https://github.com/tzachbon/win-mix/releases/tag/v1.0.3) from `6d48b22`. Only application version changed from 1.0.2. Hosted installer SHA-256: `bf1ac39e7c59f17378d6884dbe93eac78f71eb4d3818552840ad9525b4801449`.
+- Downloaded both hosted installers and checked their API digests, checksum sidecars, byte counts, and PE versions. Public latest-release endpoint selects v1.0.3. Repository remains public.
+- Installed 1.0.2 is ready for the user's actual Settings-button update to 1.0.3. That interaction, reopened Settings success, and the final state comparison are pending. 1.0.3 was not manually installed as a substitute for this check.
