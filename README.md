@@ -18,6 +18,12 @@ Win Mix controls Windows endpoint levels and active app-session levels. It does 
 
 This build is unsigned, so Windows may show a reputation warning.
 
+## Updates
+
+In Settings, **Check for updates** checks the latest stable GitHub release only when clicked. **Update to…** downloads and verifies the installer, shows installation progress, then reopens Settings with the new version. Downloads can be canceled. Settings and startup preferences are preserved. Development builds link to the release page instead of installing. Version 1.0.1 needs one normal installer upgrade to gain this button.
+
+Updates use GitHub HTTPS release metadata, SHA-256, size and file-version checks. Installers remain unsigned. There are no automatic checks or background downloads. Failed downloads never launch; if the installer itself fails after closing Win Mix, use its error message and reopen the app or rerun the installer.
+
 ## Support
 
 Use the [GitHub issue templates](https://github.com/tzachbon/win-mix/issues/new/choose) for ordinary bug reports and feature requests. Do not post credentials, device IDs, personal paths, or unredacted diagnostics. Report suspected vulnerabilities privately using the instructions in [SECURITY.md](SECURITY.md).

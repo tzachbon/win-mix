@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- The test assembly is a fixed-version PE fixture, independent of app releases. -->
+    <FileVersion>1.0.2.0</FileVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="..\..\Platform\Update*.cs" Link="Platform\%(Filename)%(Extension)" />
+    <Compile Include="..\..\Platform\Preferences.cs" Link="Platform\Preferences.cs" />
+  </ItemGroup>
+</Project>

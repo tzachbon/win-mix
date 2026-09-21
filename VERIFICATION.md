@@ -92,3 +92,13 @@ Status: PARTIAL product acceptance. Repository changes implement T1-T4 of the [r
 | Independent review | Separate fresh-context planning and post-change reviews in isolated checkouts passed. The post-change review covered implementation `2ab6e55` with no P0-P2 findings. |
 
 Windows Sandbox is absent on this host, and the current shell lacks permission to enumerate Hyper-V VMs. Owner approval does not remove those environment limits. No fresh clean-machine, physical unplug/reconnect, sign-in, interactive installer Retry/Cancel, theme, or multi-monitor/DPI result is claimed. Earlier runtime evidence above remains historical. Build/notice checks do not close these acceptance gaps.
+
+## Manual updater implementation (2026-09-21)
+
+- Added manual Settings checks, bounded verified downloads, cancellation, registered-installation gating, and the existing Inno shutdown/reopen handoff. Automatic checks remain deferred.
+- Focused fake-HTTP suite passed 94 assertions, including cancellation during final installation-directory validation, rejected downloads never launching, checksums and PE versions, redirects, limits, duplicate actions, timeout/error/retry behavior, and cache ownership.
+- Production downloader successfully fetched and verified the real GitHub v1.0.1 installer without executing it. Its digest matched the published release digest above.
+- Executed the actual Inno cache-cleanup procedure in an isolated fixture. Owned files were removed, locked files were deferred, and unrelated files and nested folders survived.
+- Native Settings displayed the new version and Check for updates button. A real manual check correctly showed current for a development build newer than the published release. Computer Use was stopped by the user with Escape. Further interactive checks and the real updater-button upgrade remain pending.
+- These checks do not establish clean-machine installation or full native interaction acceptance.
+- Fresh isolated Sol xhigh post-implementation review passed aggregate changes 6702036..1ac5c06 after the cancellation and development-wording fixes. Clean build, publish and Inno compilation passed at 1ac5c06. Real button-driven upgrade remains the rollout acceptance gate.

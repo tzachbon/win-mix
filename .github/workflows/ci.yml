@@ -31,6 +31,8 @@ jobs:
           ./Tests/ReleaseChecks.ps1
           dotnet run --project Tests/GestureTests.csproj -c Release
           if ($LASTEXITCODE) { throw 'Gesture tests failed.' }
+          dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
+          if ($LASTEXITCODE) { throw 'Update tests failed.' }
           dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true
           if ($LASTEXITCODE) { throw 'Publish failed.' }
           ./Tests/PublishChecks.ps1

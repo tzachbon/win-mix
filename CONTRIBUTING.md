@@ -10,10 +10,11 @@ Run these from the repository root in PowerShell:
 
 ```powershell
 dotnet run --project Tests/GestureTests.csproj -c Release
+dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
 ./Tests/ReleaseChecks.ps1
 ```
 
-The first command runs deterministic gesture and channel-rule checks without audio hardware. The second checks release version and tag guards; it does not build the app or installer.
+The first command runs deterministic gesture and channel-rule checks without audio hardware. The second runs the updater test suite. The third checks release version and tag guards; it does not build the app or installer.
 
 To publish the self-contained app without compiling the installer, run the locked publish and verify the published resources and license notices:
 
@@ -28,7 +29,7 @@ To publish the self-contained app and compile the installer, install Inno Setup 
 ./build.ps1 -Dotnet dotnet -InnoCompiler 'C:\path\to\ISCC.exe'
 ```
 
-Replace the example compiler path with your local path. The script reruns gesture checks, performs a locked publish, checks published resources and versions, then writes the installer and SHA-256 sidecar to the parent of the checkout by default. `-OutputDirectory` changes that destination. The script replaces the checkout's `publish` directory before publishing, so save any files you need from that directory first.
+Replace the example compiler path with your local path. The script reruns gesture and updater checks, performs a locked publish, checks published resources and versions, then writes the installer and SHA-256 sidecar to the parent of the checkout by default. `-OutputDirectory` changes that destination. The script replaces the checkout's `publish` directory before publishing, so save any files you need from that directory first.
 
 The audio probe is separate from the deterministic checks. Its default mode reads endpoint and session state without changing levels:
 
