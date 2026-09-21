@@ -70,6 +70,7 @@ function metadataFixture(options = {}) {
       }),
       listReleases: async () => ({data: options.releases || []}),
       getBranch: async () => ({data: {commit: {sha: options.mainSha || BASE}}}),
+      compareCommitsWithBasehead: async () => ({data: {status: options.ancestry || 'ahead'}}),
     },
     actions: {
       getRepoVariable: options.getRepoVariable || (async () => ({data: {name: 'RELEASE_AUTOMATION_ENABLED', value: 'true'}})),
@@ -332,4 +333,29 @@ test('eligible live release uses an exact-head squash with validated title and b
     owner: 'owner', repo: 'repo', pull_number: 7, sha: HEAD, merge_method: 'squash',
     commit_title: 'chore(main): release 1.2.4', commit_message: '',
   }]);
+});
+
+test('current PR base alone does not make old branch checks current', async () => {
+  const fixture = metadataFixture({ancestry: 'diverged'});
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /must contain current main/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('corrected titles use the latest check attempt on the same head', async () => {
+  const fixture = metadataFixture();
+  const checks = successfulChecks();
+  checks.push({...checks[0], id: 10, conclusion: 'failure'});
+  checks.push({...checks[0], id: 11});
+  const result = await policy.autoMergeRelease({github: fixture.github, readGithub: readClient(checks), context: autoContext(), env});
+  assert.equal(result.merged, true);
+});
+
+test('a newer failed or queued check invalidates an older success', async () => {
+  for (const state of [{status: 'completed', conclusion: 'failure'}, {status: 'queued', conclusion: null}]) {
+    const fixture = metadataFixture();
+    const checks = successfulChecks();
+    checks.push({...checks[0], id: 10, ...state});
+    await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(checks), context: autoContext(), env}), /not a current successful/);
+    assert.equal(fixture.mergeCalls.length, 0);
+  }
 });

@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  checks: read
 
 concurrency:
   group: release-automation-main
@@ -53,6 +54,18 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-github-release: true
+      - name: Evaluate current release PR on manual run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          READ_TOKEN: ${{ github.token }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const drafts = await github.paginate(github.rest.repos.listReleases, {...context.repo, per_page:100});
+            if (drafts.some(release => release.draft)) return;
+            const readGithub = new github.constructor({auth:process.env.READ_TOKEN});
+            core.info(JSON.stringify(await require('./.github/scripts/release-policy.cjs').autoMergeRelease({github, readGithub, context, core})));
       - name: Check live publication switch and release commit
         id: gate
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8

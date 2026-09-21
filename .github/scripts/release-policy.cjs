@@ -318,8 +318,9 @@ async function validateChecks(github, repo, ref) {
   requireUnique(checks, 'id', 'Check runs');
   for (const name of REQUIRED_CHECKS) {
     const matches = checks.filter(check => check.name === name);
-    invariant(matches.length === 1, `Required check "${name}" is missing or ambiguous.`);
-    const check = matches[0];
+    invariant(matches.length && matches.every(check => Number.isSafeInteger(check.id) && check.id > 0), `Required check "${name}" is missing or invalid.`);
+    // Title edits create additional suites on the same head. A newer pending or failed check supersedes an older success.
+    const check = matches.reduce((latest, candidate) => candidate.id > latest.id ? candidate : latest);
     invariant(check.head_sha === ref && check.app?.slug === 'github-actions' && check.status === 'completed' && check.conclusion === 'success', `Required check "${name}" is not a current successful GitHub Actions check.`);
   }
 }
@@ -362,6 +363,8 @@ async function autoMergeRelease({github, readGithub = github, context, core, env
   invariant(current.mergeable === true, 'Release pull request is not currently mergeable.');
   const mainSha = requireSha((await github.rest.repos.getBranch({...repo, branch: MAIN_BRANCH}))?.data?.commit?.sha, 'Current main head');
   invariant(current.base.sha === mainSha, 'Release pull request base is behind current main.');
+  const ancestry = await compare(github, repo, mainSha, metadata.headSha, false);
+  invariant(['ahead', 'identical'].includes(ancestry.status), 'Release branch must contain current main before using its checks.');
   if (!await automationEnabled(github, repo)) {
     core?.notice?.(`Release automation is paused; pull request #${current.number} at ${metadata.headSha} would merge.`);
     return {paused: true, wouldMerge: {number: current.number, headSha: metadata.headSha}};
