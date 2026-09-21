@@ -52,7 +52,7 @@ function metadataFixture(options = {}) {
     pulls: {
       get: async () => ({data: pulls[Math.min(getIndex++, pulls.length - 1)]}),
       listFiles: options.listFiles || (async () => ({data: files})),
-      list: async () => ({data: [{number: 7}]}),
+      list: async () => ({data: options.candidates === undefined ? [{number: 7}] : options.candidates}),
       merge: async args => { mergeCalls.push(args); return {data: {merged: true, sha: RELEASE}}; },
     },
     repos: {
@@ -69,12 +69,12 @@ function metadataFixture(options = {}) {
         throw new Error(`Unexpected content read: ${ref}:${path}`);
       }),
       listReleases: async () => ({data: options.releases || []}),
-      getBranch: async () => ({data: {commit: {sha: BASE}}}),
+      getBranch: async () => ({data: {commit: {sha: options.mainSha || BASE}}}),
     },
     actions: {
       getRepoVariable: options.getRepoVariable || (async () => ({data: {name: 'RELEASE_AUTOMATION_ENABLED', value: 'true'}})),
     },
-    apps: {getBySlug: async ({app_slug}) => ({data: {id: 123, slug: app_slug}})},
+    apps: {getBySlug: async ({app_slug}) => ({data: {id: options.appId || 123, slug: app_slug}})},
   }};
   return {github, mergeCalls};
 }
@@ -163,6 +163,16 @@ test('release metadata rejects a fake bot and non-regular files', async () => {
   await assert.rejects(policy.validateReleaseMetadata({github: normal.github, context, env}), /CHANGELOG.md must be a regular file/);
 });
 
+test('release metadata rejects a bot login whose App ID does not match', async () => {
+  const fixture = metadataFixture({appId: 999});
+  await assert.rejects(policy.validateReleaseMetadata({github: fixture.github, context, env}), /App ID/);
+});
+
+test('release metadata fails closed when changed_files does not match the complete list', async () => {
+  const fixture = metadataFixture({pulls: [releasePull({changed_files: 4})]});
+  await assert.rejects(policy.validateReleaseMetadata({github: fixture.github, context, env}), /file list is incomplete/);
+});
+
 test('major release metadata is valid but never automatic', async () => {
   const pr = releasePull({title: 'chore(main): release 2.0.0'});
   const {github} = metadataFixture({pulls: [pr], newVersion: '2.0.0'});
@@ -218,6 +228,17 @@ test('main preflight allows only blank body lines and co-author trailers', async
   assert.equal(result.boundarySha, RELEASE);
 });
 
+test('main preflight permits subject and scope edits that preserve type and breaking intent', async () => {
+  const github = preflightFixture('fix: stabilize endpoint (#9)');
+  const result = await policy.validateMainPreflight({github, context, env, headSha: MAIN});
+  assert.deepEqual(result.commits, [MAIN]);
+});
+
+test('main preflight rejects a release directive hidden in the subject', async () => {
+  const github = preflightFixture('fix: ignore Release-As: 9.0.0 (#9)');
+  await assert.rejects(policy.validateMainPreflight({github, context, env, headSha: MAIN}), /forbidden release override/);
+});
+
 test('main preflight rejects ambiguous associated pull requests', async () => {
   const github = preflightFixture('fix(audio): keep endpoint stable', {}, [{number: 9}, {number: 10}]);
   await assert.rejects(policy.validateMainPreflight({github, context, env, headSha: MAIN}), /exactly one associated/);
@@ -228,6 +249,27 @@ test('failed required checks stop auto-merge', async () => {
   const checks = successfulChecks();
   checks[1] = {...checks[1], conclusion: 'failure'};
   await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(checks), context: autoContext(), env}), /not a current successful/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('auto-merge cleanly ignores runs when no release pull request exists', async () => {
+  const fixture = metadataFixture({candidates: []});
+  const result = await policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env});
+  assert.deepEqual(result, {eligible: false, reason: 'no-release-pr'});
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('major releases are reported for manual merge without reading checks or merging', async () => {
+  const major = releasePull({title: 'chore(main): release 2.0.0'});
+  const fixture = metadataFixture({pulls: [major], newVersion: '2.0.0'});
+  const notices = [];
+  const result = await policy.autoMergeRelease({
+    github: fixture.github,
+    readGithub: {rest: {checks: {listForRef: async () => { throw new Error('checks must not be read'); }}}},
+    context: autoContext(), env, core: {notice: message => notices.push(message)},
+  });
+  assert.deepEqual(result, {eligible: false, reason: 'major-release', number: 7});
+  assert.equal(notices.length, 1);
   assert.equal(fixture.mergeCalls.length, 0);
 });
 
@@ -254,6 +296,32 @@ test('a changed release head fails before merge', async () => {
   const fixture = metadataFixture({pulls: [releasePull(), releasePull(), changed]});
   await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /changed after validation/);
   assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('paused automation never reports a conflicting pull request as would-merge', async () => {
+  const fixture = metadataFixture({
+    pulls: [releasePull({mergeable: false})],
+    getRepoVariable: async () => { throw Object.assign(new Error('missing'), {status: 404}); },
+  });
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /not currently mergeable/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('paused automation rejects a release pull request based behind current main', async () => {
+  const fixture = metadataFixture({
+    mainSha: '8'.repeat(40),
+    getRepoVariable: async () => { throw Object.assign(new Error('missing'), {status: 404}); },
+  });
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /base is behind/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('manual dispatch independently revalidates and merges the current release pull request', async () => {
+  const fixture = metadataFixture();
+  const dispatch = {repo: context.repo, eventName: 'workflow_dispatch', payload: {}};
+  const result = await policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: dispatch, env});
+  assert.equal(result.merged, true);
+  assert.equal(fixture.mergeCalls.length, 1);
 });
 
 test('eligible live release uses an exact-head squash with validated title and blank body', async () => {
