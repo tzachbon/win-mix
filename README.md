@@ -1,53 +1,29 @@
 # Win Mix
 
-A small native Windows tray mixer for the existing SteelSeries Sonar Gaming, Chat and Media outputs. Windows 10 version 2004 or newer, x64.
+Win Mix is a native Windows tray mixer for SteelSeries Sonar Gaming, Chat and Media outputs, plus a selected headset master output. It runs on Windows 10 version 2004 or newer, x64.
 
-Download the installer from the [latest release](https://github.com/tzachbon/win-mix/releases/latest). Installation is per user. The installer includes the application runtimes. Start with Windows is checked on the first installation. Later installers preserve your preference. Remove Win Mix from Windows Settings > Apps > Installed apps.
+Download the per-user installer from the [latest release](https://github.com/tzachbon/win-mix/releases/latest). Releases include a SHA-256 checksum. The installer includes the application runtimes and does not require developer tools. Start with Windows is enabled on first installation; later installs preserve the existing choice. Uninstall from Windows Settings > Apps > Installed apps.
 
-Hold **Left Ctrl + Left Alt** to show quick controls at the bottom center of the current monitor. Hover a channel or press Left/Right to select it. Scroll or press Up/Down to change its volume by two percentage points. Press M to toggle mute. Release either modifier to hide the controls. Escape dismisses them. Release the keys before starting another gesture.
+![Win Mix mixer window showing Game, Chat, Media, headset master, and the app sessions panel.](docs/images/mixer.png)
 
-The tray menu opens **Mixer**, **Settings**, or exits. Closing the mixer keeps Win Mix running in the tray. Settings lets you choose the Windows output for each channel and the physical headset master output. Missing devices stay unavailable until their exact endpoint returns. Win Mix never changes application routing.
+*Installed Win Mix 1.0.1 on Windows 11.*
 
-Levels are read from Windows. Muting preserves the volume. Changing volume preserves mute. Settings contain device IDs and the last selected channel, never saved audio levels. Headset dial integration, game-specific overlay compatibility and Sonar's internal mixer synchronization are outside this version.
+## Controls
 
-The main window shows a shortcut tutorial card until you first open the quick controls. That dismissal is remembered. Session rows use the application's Windows icon when available. The generated app icon and its prompt are in `Assets`.
+Hold **Left Ctrl + Left Alt** to show quick controls at the bottom center of the current monitor. The row is **Main, Game, Chat, Media**. Main controls the headset master output selected in Settings. Hover a channel or use Left/Right to select it; scroll or use Up/Down to change its volume by two percentage points; press M to toggle mute. Release either modifier or press Escape to hide the controls. Release both keys before starting another gesture.
 
-Quick controls place **Main, Game, Chat and Media in one horizontal row**, with extra space after Main. Main controls the physical headset master output selected in Settings. Left/Right navigates Main, Game, Chat, Media. The last selection is retained. The same volume and M shortcuts apply to all four.
+The tray menu opens Mixer, Settings, or exits. Closing Mixer keeps Win Mix in the tray. Settings lets you choose a Windows output for each channel and the headset master, and control the startup option. A missing saved device remains unavailable until that same endpoint returns or you choose another one.
 
-The startup toggle also checks Windows' per-app approval marker. An explicit On action clears only Win Mix's marker. Normal launch and upgrades preserve it. The marker format is not a documented Windows API, so malformed or unknown states are conservatively shown as Off.
+Win Mix controls Windows endpoint levels and active app-session levels. It does not change application routing. It does not integrate with a headset dial, ensure game-specific overlay compatibility, or synchronize Sonar's internal mixer. Levels come from Windows; muting preserves volume, and changing volume preserves mute. Settings store endpoint IDs and the selected quick-control channel, not audio levels.
 
-## Build
+This build is unsigned, so Windows may show a reputation warning.
 
-Install the .NET SDK version pinned in `global.json` and Inno Setup 7.1.0. From this folder:
+## Support
 
-```powershell
-./build.ps1 -Dotnet dotnet -InnoCompiler 'C:\path\to\ISCC.exe'
-```
+Use the [GitHub issue templates](https://github.com/tzachbon/win-mix/issues/new/choose) for ordinary bug reports and feature requests. Do not post credentials, device IDs, personal paths, or unredacted diagnostics. Private security reporting is not currently configured; do not post sensitive security details in public issues.
 
-The script runs the deterministic tests, publishes self-contained application files and creates the installer and SHA-256 sidecar in the parent output folder. Use `-OutputDirectory` to choose another folder. Exact NuGet dependencies are recorded in `packages.lock.json`.
+For local settings and error-file locations and redaction guidance, see [Diagnostics](CONTRIBUTING.md#diagnostics).
 
-```powershell
-dotnet run --project Tests/GestureTests.csproj -c Release
-dotnet run --project Tests/AudioProbe/AudioProbe.csproj
-```
+## Development
 
-The audio probe is read-only by default. See its source for the explicit exercise option, which temporarily changes channel levels and restores them in `finally`.
-
-The application uses WinUI 3, Windows Core Audio through NAudio, native tray and input APIs, and the current user's Windows startup registration. No service, driver, account, updater, or browser runtime is required.
-
-This build is unsigned. Windows may show a reputation warning.
-
-## Release
-
-`Directory.Build.props` is the single version source for the app, Settings and installer. Use three numeric components such as `1.0.1`.
-
-To release, update that file, commit and push the changes, then push a matching tag:
-
-```powershell
-git tag v1.0.1
-git push origin v1.0.1
-```
-
-Replace `1.0.1` with the new version. The `Release installer` workflow rejects mismatched tags, runs tests, builds a self-contained x64 installer and publishes a GitHub release with the EXE and its `.sha256` checksum. It uses the repository's built-in Actions token. No personal access token or separate runtime installation is needed.
-
-
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the pinned SDK, checks, installer prerequisites, source map, and audio-probe safety. The project is distributed under the [MIT License](LICENSE); third-party notices are in [Licenses](Licenses/).

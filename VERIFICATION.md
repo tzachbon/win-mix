@@ -75,3 +75,20 @@ Horizontal layout dbe6f2f: Main, Game, Chat and Media share one row, with extra 
 - Downloaded the hosted installer, verified its checksum/version, and upgraded the existing per-user installation. Exit code 0; settings hash, startup registration and startup approval were preserved. Installed version matched; exactly one process remained after a quiet background launch with `MainWindowHandle = 0`.
 - Made the repository public after release verification. Unauthenticated repository API access and downloads of both release assets succeeded. Public installer bytes matched the tested hosted installer and sidecar.
 - This validates the release workflow and upgrade on the development machine. The earlier clean-machine and manual UI acceptance gaps remain unchanged.
+
+## Open-source readiness implementation (2026-09-21)
+
+Status: PARTIAL product acceptance. Repository changes implement T1-T4 of the [readiness plan](docs/plans/open-source-readiness.md), subject to the reporting and hosted-CI gates below. T5 clean-machine and outstanding interactive scenarios remain unverified.
+
+| Check | Evidence |
+| --- | --- |
+| Licensing and provenance | Root MIT license, sole recorded Git author `tzachbon`, generated-icon prompt retained. [Attribution inventory](Licenses/README.md) identifies bundled components and adds missing package-supplied transitive notices. |
+| Local deterministic checks | SDK 10.0.401: `dotnet run --project Tests/GestureTests.csproj -c Release` and `./Tests/ReleaseChecks.ps1` passed. |
+| Locked publish | `dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true` passed. `./Tests/PublishChecks.ps1` verified the four runtime resources and all 15 license/attribution files byte-for-byte. A scratch copy with a deliberately corrupted LICENSE was rejected. |
+| Installer compilation | `build.ps1` passed with Inno Setup 7.1.0. Compiler output listed root LICENSE and every Licenses file as compressed into the installer. SHA-256: `39db9e4d49ca785badcf5f9288d2c28a48f26a0e99d382c907cddabe56839ecc`. This package was not installed or released. |
+| Genuine visual | [Mixer screenshot](docs/images/mixer.png) captured from installed 1.0.1 on Windows 11 build 26200. Window-only image inspected for private content. This confirms the displayed mixer layout, not quick-control keyboard/mute or multi-DPI behavior. |
+| Workflow boundary | New CI uses read-only permissions and credential-free checkout for PRs and pushes to main. The tag-release workflow is unchanged. Hosted success and deliberate failure-propagation evidence pending. |
+| Reporting | Issue and PR templates added. Private reporting remains disabled pending exact owner approval, so SECURITY.md is not yet published. |
+| Independent review | Fresh-context planning review in an isolated checkout passed. Post-change review pending. |
+
+Windows Sandbox is absent on this host. No fresh clean-machine, physical unplug/reconnect, sign-in, interactive installer Retry/Cancel, theme, or multi-monitor/DPI result is claimed. Earlier runtime evidence above remains historical. Build/notice checks do not close these acceptance gaps.

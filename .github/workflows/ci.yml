@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Windows build and tests
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Test and publish
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./Tests/ReleaseChecks.ps1
+          dotnet run --project Tests/GestureTests.csproj -c Release
+          if ($LASTEXITCODE) { throw 'Gesture tests failed.' }
+          dotnet publish Mix.csproj -c Release -o publish -p:RestoreLockedMode=true
+          if ($LASTEXITCODE) { throw 'Publish failed.' }
+          ./Tests/PublishChecks.ps1

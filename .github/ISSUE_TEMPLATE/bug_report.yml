@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible problem.
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Use this form for ordinary issues. Do not include credentials, endpoint IDs, personal paths, or details of a sensitive security issue. Private security reporting is not yet available.
+  - type: input
+    id: app-version
+    attributes:
+      label: Win Mix version
+      description: Find it in Settings.
+      placeholder: 1.0.1
+    validations:
+      required: true
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version
+      description: Include Windows edition and version from winver.
+      placeholder: Windows 11, version 24H2
+    validations:
+      required: true
+  - type: textarea
+    id: audio-setup
+    attributes:
+      label: Audio setup
+      description: Describe assigned outputs and headset without device IDs or personal names.
+      render: text
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the shortest steps that show the problem.
+      placeholder: |
+        1. Open Settings.
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics (optional)
+      description: Paste relevant error text only after removing device IDs, personal paths, and other identifying details. Omit anything you cannot safely sanitize.
+      render: text

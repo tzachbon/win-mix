@@ -1,5 +1,7 @@
 # Win Mix open-source readiness plan
 
+Implementation was authorized on 2026-09-21. The sections below retain the original planning baseline and acceptance criteria. Current execution evidence and remaining gates are recorded in [VERIFICATION.md](../../VERIFICATION.md#open-source-readiness-implementation-2026-09-21).
+
 ## Objective and delivery boundary
 
 Make Win Mix understandable, buildable and maintainable by someone outside the original development environment. The requested deliverable is a researched plan submitted as a pull request. This PR changes documentation only. It does not apply a license, change repository settings, modify workflows, install software, or publish another release.
