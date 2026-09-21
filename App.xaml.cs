@@ -16,6 +16,7 @@ public partial class App : Application
     DesktopHost? host;
     MixerWindow? mixer;
     OverlayWindow? overlay;
+    UpdateController? updates;
     AudioState state = new([], [], [], null);
     bool exiting;
     public App()
@@ -33,6 +34,9 @@ public partial class App : Application
     {
         dispatcher = DispatcherQueue.GetForCurrentThread();
         instance = new Instance(() => Queue(Quit), () => Queue(() => OpenMixer(false)));
+        updates = new UpdateController();
+        updates.Changed += value => Queue(() => mixer?.SetUpdateState(value));
+        updates.Cleanup();
         audio = new AudioService(preferences.Bindings);
         audio.Changed += value => Queue(() => Update(value));
         host = new DesktopHost();
@@ -40,7 +44,12 @@ public partial class App : Application
         try { host.Start(); }
         catch (Exception ex) { OpenMixer(false); mixer!.SetError("Quick controls could not start: " + ex.Message); }
         audio.Refresh();
-        if (!Environment.GetCommandLineArgs().Contains("--background")) OpenMixer(false);
+        if (Environment.GetCommandLineArgs().Contains("--updated"))
+        {
+            updates.MarkUpdated();
+            OpenMixer(true);
+        }
+        else if (!Environment.GetCommandLineArgs().Contains("--background")) OpenMixer(false);
     }
     void Queue(Action action) => dispatcher.TryEnqueue(() => { if (!exiting) action(); });
     void Update(AudioState value)
@@ -64,6 +73,8 @@ public partial class App : Application
         if (mixer == null)
         {
             mixer = new MixerWindow();
+            mixer.UpdateRequested += async () => await updates!.RunAsync();
+            mixer.UpdateCanceled += () => updates!.Cancel();
             mixer.LevelChanged += (key, value) => audio!.SetLevel(key, value);
             mixer.MuteRequested += key => audio!.ToggleMute(key);
             mixer.SessionLevelChanged += (key, value) => audio!.SetSession(key, volume: value);
@@ -79,6 +90,7 @@ public partial class App : Application
         mixer.Update(state);
         mixer.SetShortcutUsed(preferences.HasUsedShortcut);
         mixer.SetStartupEnabled(Preferences.StartupEnabled);
+        if (updates != null) mixer.SetUpdateState(updates.State);
         mixer.ShowSettings(settings);
         mixer.Activate();
     }
@@ -121,6 +133,7 @@ public partial class App : Application
     {
         if (exiting) return;
         exiting = true;
+        updates?.Dispose();
         host?.Dispose();
         audio?.Dispose();
         overlay?.Destroy();
