@@ -12,9 +12,12 @@ Run these from the repository root in PowerShell:
 dotnet run --project Tests/GestureTests.csproj -c Release
 dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
 ./Tests/ReleaseChecks.ps1
+./Tests/DefenderChecks.ps1
 ```
 
-The first command runs deterministic gesture and channel-rule checks without audio hardware. The second runs the updater test suite. The third checks release version and tag guards; it does not build the app or installer.
+The first command runs deterministic gesture and channel-rule checks without audio hardware. The second runs the updater test suite. The release and Defender checks exercise version guards, scan failures, changed artifacts, and evidence cleanup with harmless fixtures.
+
+With Inno Setup available, run `./Tests/InstallerShutdownChecks.ps1 -InnoCompiler 'C:\path\to\ISCC.exe'`. It compiles the real installer's shutdown code into an isolated temporary installer with harmless processes. It checks damaged or missing apps, graceful exit, failed shutdown, unknown process state, unrelated installations, and file locks. It creates no startup entries or uninstall registration and does not install Win Mix. This is regression coverage, not a substitute for real app updates on Windows 10 and 11.
 
 To publish the self-contained app without compiling the installer, run the locked publish and verify the published resources and license notices:
 
@@ -29,7 +32,11 @@ To publish the self-contained app and compile the installer, install Inno Setup 
 ./build.ps1 -Dotnet dotnet -InnoCompiler 'C:\path\to\ISCC.exe'
 ```
 
-Replace the example compiler path with your local path. The script reruns gesture and updater checks, performs a locked publish, checks published resources and versions, then writes the installer and SHA-256 sidecar to the parent of the checkout by default. `-OutputDirectory` changes that destination. The script replaces the checkout's `publish` directory before publishing, so save any files you need from that directory first.
+Replace the example compiler path with your local path. The script reruns gesture and updater checks, performs a locked publish, checks published resources and versions, then scans the payload and compiled installer with Microsoft Defender. Defender must be available in normal mode with current signatures updated within 48 hours. Detection, scan failure, or changed files aborts the build and removes success sidecars. The custom scan uses `-DisableRemediation`, which does not disable real-time protection. Do not add exclusions or restore quarantined files to make a build pass.
+
+The output directory contains the installer, SHA-256 sidecar, `.defender.json` evidence, and `*-scan.log` output. Logs describe custom-scan detections that may not appear in Protection History. CI keeps the installer and checksum in the `installer` artifact and scan evidence separately in `defender-evidence`. A clean scan applies only to the exact bytes and recorded definitions, not future definitions or an unavailable quarantined file.
+
+Output goes to the parent of the checkout by default. `-OutputDirectory` changes that destination. The script replaces the checkout's `publish` directory before publishing, so save any files you need from that directory first.
 
 The audio probe is separate from the deterministic checks. Its default mode reads endpoint and session state without changing levels:
 

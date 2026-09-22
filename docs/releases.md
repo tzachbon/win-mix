@@ -41,6 +41,8 @@ Release workflows share one concurrency group and never cancel an active publica
 
 ## Verification
 
-Run `node --test Tests/*.test.cjs`, `./Tests/ReleaseChecks.ps1`, and `./build.ps1` on Windows with the pinned .NET SDK and Inno Setup. CI retains the installer and checksum as the `installer` artifact. Policy tests use isolated fake GitHub responses and do not merge or publish.
+Run `node --test Tests/*.test.cjs`, `./Tests/ReleaseChecks.ps1`, `./Tests/DefenderChecks.ps1`, the installer shutdown checks described in CONTRIBUTING.md, and `./build.ps1` on Windows with the pinned .NET SDK and Inno Setup. Both the published application tree and final installer must pass Defender scans before a checksum and success evidence are written. CI retains only the installer and checksum as the `installer` artifact, preserving the two-asset publication contract. The separate `defender-evidence` artifact retains hashes, scanner/signature versions, and raw scan output, including failed scans when available. Policy tests use isolated fake GitHub responses and do not merge or publish.
+
+Before approving a release, test that exact CI installer hash on Windows 10 and 11 with real-time/cloud protection enabled and no effective exclusions. Verify fresh installation, controls, a healthy update and repair of a stopped damaged installation, with settings and startup preference preserved. Do not substitute a locally rebuilt installer for the tested artifact. After authorized publication, compare the hosted asset hash and complete a real Settings update from a clean prior release. Record any unavailable environment or incomplete test as a remaining gate.
 
 Dry-run readiness is distinct from live rollout. Automatic merging and public publication require a later explicitly enabled end-to-end run.

@@ -56,9 +56,21 @@ jobs:
           EXPECTED_TAG: ${{ inputs.release-tag }}
         run: |
           ./Tests/ReleaseChecks.ps1
+          ./Tests/DefenderChecks.ps1
+          ./Tests/InstallerShutdownChecks.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe')
           ./build.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release') -ExpectedTag $env:EXPECTED_TAG
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: installer
           if-no-files-found: error
-          path: ${{ runner.temp }}/release/*
+          path: |
+            ${{ runner.temp }}/release/*.exe
+            ${{ runner.temp }}/release/*.exe.sha256
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: defender-evidence
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/release/*.defender.json
+            ${{ runner.temp }}/release/*-scan.log
