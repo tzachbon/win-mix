@@ -7,8 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot
 try {
-    [xml]$properties = Get-Content (Join-Path $PSScriptRoot 'Directory.Build.props') -Raw
-    $version = [string]$properties.Project.PropertyGroup.Version
+    $version = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'VERSION')).Trim()
     if ($version -cnotmatch '^(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$' -or
         @($version.Split('.') | Where-Object { [int]$_ -gt 65535 }).Count) {
         throw 'Version must contain three integers from 0 to 65535 without leading zeros.'

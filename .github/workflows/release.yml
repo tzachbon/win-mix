@@ -1,71 +1,147 @@
-name: Release installer
+name: Release automation
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
+  checks: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-automation-main
   cancel-in-progress: false
 
+env:
+  RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
+  RELEASE_BOT_APP_ID: ${{ vars.RELEASE_BOT_APP_ID }}
+  RELEASE_POLICY_START_SHA: ${{ vars.RELEASE_POLICY_START_SHA }}
+
 jobs:
-  build:
-    runs-on: windows-2025
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
     outputs:
-      version: ${{ steps.build.outputs.version }}
+      id: ${{ steps.draft.outputs.id }}
+      tag: ${{ steps.draft.outputs.tag }}
+      sha: ${{ steps.draft.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: main
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      # Inherit the App's narrow installed permissions, including Variables read.
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app
         with:
-          global-json-file: global.json
-      - name: Install verified Inno Setup 7.1.0
-        shell: pwsh
-        run: |
-          $setup = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
-          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $setup
-          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne '0362A383ED217D4C4239B5933866DD96D3EB2102737DA92F80F6057A4B40DF2F') { throw 'Inno Setup checksum mismatch.' }
-          $directory = Join-Path $env:RUNNER_TEMP 'inno'
-          $process = Start-Process $setup -ArgumentList "/CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$directory`"" -WindowStyle Hidden -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw 'Inno Setup installation failed.' }
-      - name: Test and build versioned installer
-        id: build
-        shell: pwsh
-        run: |
-          ./Tests/ReleaseChecks.ps1
-          ./build.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release') -ExpectedTag $env:GITHUB_REF_NAME
-          [xml]$properties = Get-Content Directory.Build.props -Raw
-          "version=$($properties.Project.PropertyGroup.Version)" >> $env:GITHUB_OUTPUT
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: win-mix
+      - name: Audit merged release intent
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
-          name: installer
-          if-no-files-found: error
-          path: |
-            ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe
-            ${{ runner.temp }}/release/win-mix-Setup-${{ steps.build.outputs.version }}-x64.exe.sha256
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const main = (await github.rest.repos.getBranch({...context.repo, branch:'main'})).data.commit.sha;
+            await require('./.github/scripts/release-policy.cjs').validateMainPreflight({github, context, headSha:main});
+      - name: Prepare version PR only
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          token: ${{ steps.app.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true
+      - name: Evaluate current release PR on manual run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          READ_TOKEN: ${{ github.token }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const drafts = await github.paginate(github.rest.repos.listReleases, {...context.repo, per_page:100});
+            if (drafts.some(release => release.draft)) return;
+            const readGithub = new github.constructor({auth:process.env.READ_TOKEN});
+            core.info(JSON.stringify(await require('./.github/scripts/release-policy.cjs').autoMergeRelease({github, readGithub, context, core})));
+      - name: Check live publication switch and release commit
+        id: gate
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const publisher = require('./.github/scripts/publish-release.cjs');
+            if (!await publisher.enabled(github, context.repo)) {
+              core.notice('Paused: PR preparation only. No merge, tag, draft or publication.');
+              return;
+            }
+            if (await publisher.draftState({github, context})) return;
+            const commits = (await github.rest.repos.listCommits({...context.repo, sha:'main', path:'VERSION', per_page:1})).data;
+            if (commits.length !== 1) throw Error('Cannot resolve version commit.');
+            const file = (await github.rest.repos.getContent({...context.repo, path:'VERSION', ref:commits[0].sha})).data;
+            const version = Buffer.from(file.content, 'base64').toString('utf8').trim();
+            try {
+              const existing = (await github.rest.repos.getReleaseByTag({...context.repo, tag:`v${version}`})).data;
+              if (!existing.draft) { core.info('Current version is already published.'); return; }
+            } catch (error) { if (error.status !== 404) throw error; }
+            await require('./.github/scripts/release-policy.cjs').assertReleaseCommit({github, context, sha:commits[0].sha, version});
+            core.setOutput('create', String(await publisher.enabled(github, context.repo)));
+      - name: Create draft only
+        if: steps.gate.outputs.create == 'true'
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          token: ${{ steps.app.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-pull-request: true
+      - name: Recover draft through GitHub APIs
+        id: draft
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const publisher = require('./.github/scripts/publish-release.cjs');
+            if (await publisher.enabled(github, context.repo)) await publisher.draftState({github, context, core});
 
-  release:
-    needs: build
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.sha != ''
+    uses: ./.github/workflows/ci.yml
+    with:
+      release-sha: ${{ needs.prepare.outputs.sha }}
+      release-tag: ${{ needs.prepare.outputs.tag }}
+
+  publish:
+    needs: [prepare, build]
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: installer
           path: release
-      - name: Verify and publish release
-        working-directory: release
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: win-mix
+      - name: Verify assets and publish exact draft
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          installer="win-mix-Setup-$VERSION-x64.exe"
-          sha256sum --check "$installer.sha256"
-          gh release create "$TAG" --verify-tag --title "Win Mix $VERSION" --generate-notes "$installer" "$installer.sha256"
+          DRAFT_ID: ${{ needs.prepare.outputs.id }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const main = (await github.rest.repos.getBranch({...context.repo, branch:'main'})).data.commit.sha;
+            await require('./.github/scripts/release-policy.cjs').validateMainPreflight({github, context, headSha:main});
+            await require('./.github/scripts/publish-release.cjs').publish({github, context, core,
+              directory:'release', expected:{id:process.env.DRAFT_ID, tag:process.env.RELEASE_TAG, sha:process.env.RELEASE_SHA}});

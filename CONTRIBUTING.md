@@ -61,13 +61,12 @@ Win Mix stores per-user data under `%LOCALAPPDATA%\Mix.Native`:
 
 Before sharing either file or captured probe output, redact device IDs, personal Windows paths, and any other identifying information. The probe can print endpoint details even in its read-only mode. Omit diagnostics you cannot safely sanitize.
 
-## Release
+## PRs and releases
 
-[`Directory.Build.props`](Directory.Build.props) is the single app and installer version source. Use three numeric components, for example `1.0.1`. Before tagging, run the release checks and build the installer with the command above. Commit and push the version change, then push a matching `v` tag:
+Use a Conventional Commit PR title, for example `fix: preserve mute state`. Normal PRs are manually squash merged after required checks. See [release policy and recovery](docs/releases.md) for version bumps and the paused release pipeline. `VERSION` is the single application version source. Do not push release tags manually.
+
+Release policy and publication tests require Node.js 24:
 
 ```powershell
-git tag v1.0.1
-git push origin v1.0.1
+node --test Tests/*.test.cjs Tests/site.test.mjs
 ```
-
-Replace `1.0.1` with the version in `Directory.Build.props`. The release workflow checks that the tag matches, builds the self-contained x64 installer, and publishes it with its `.sha256` checksum. The publishing job uses the repository's built-in Actions token.
