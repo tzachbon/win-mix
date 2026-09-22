@@ -25,7 +25,7 @@ flowchart TD
 
 ## Repository setup
 
-Install the private release App only on this repository. Give it Contents, Pull requests and Issues write, Metadata read and Variables read. Do not grant administration, workflow write or a ruleset bypass. Store its key as `RELEASE_APP_PRIVATE_KEY`. Set `RELEASE_APP_ID`, `RELEASE_BOT_APP_ID` and `RELEASE_BOT_LOGIN` to its verified identity. Tokens are short lived and scoped to this repository. Check reads use the workflow's separate read-only token.
+Install the private release App only on this repository. Give it Contents, Pull requests and Issues write, Metadata read and Variables read. Do not grant administration, workflow write or a ruleset bypass. Store its key as `RELEASE_APP_PRIVATE_KEY`. Set `RELEASE_APP_ID`, `RELEASE_BOT_APP_ID`, `RELEASE_BOT_LOGIN` and `RELEASE_BOT_USER_ID` to its verified identity. The user ID is the numeric `user.id` of a PR created by the App, not the App ID. Read-only PR checks pin that ID, login and Bot type because GitHub prevents their token from looking up a private App. Privileged merge and publication workflows also verify the App ID through its own token. Tokens are short lived and scoped to this repository. Check reads use the workflow's separate read-only token.
 
 Set `RELEASE_POLICY_START_SHA` to the setup merge after auditing earlier unreleased commits. Automation requires complete PR associations and ancestry from the later of that commit and the latest published release. Drafts do not advance the audit boundary. A mismatch requires a maintainer investigation. Automation never rewrites history or skips an offending commit.
 

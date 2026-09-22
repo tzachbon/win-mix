@@ -10,7 +10,7 @@ const MERGE = 'c'.repeat(40);
 const RELEASE = 'd'.repeat(40);
 const START = 'e'.repeat(40);
 const MAIN = 'f'.repeat(40);
-const env = {RELEASE_BOT_LOGIN: 'release-bot[bot]', RELEASE_BOT_APP_ID: '123', RELEASE_POLICY_START_SHA: START};
+const env = {RELEASE_BOT_LOGIN: 'release-bot[bot]', RELEASE_BOT_USER_ID: '456', RELEASE_BOT_APP_ID: '123', RELEASE_POLICY_START_SHA: START};
 const context = {repo: {owner: 'owner', repo: 'repo'}, payload: {pull_request: {number: 7}}};
 
 function encoded(text, type = 'file') {
@@ -21,7 +21,7 @@ function releasePull(overrides = {}) {
   return {
     number: 7,
     title: 'chore(main): release 1.2.4',
-    user: {login: env.RELEASE_BOT_LOGIN, type: 'Bot'},
+    user: {id: 456, login: env.RELEASE_BOT_LOGIN, type: 'Bot'},
     performed_via_github_app: {id: 123},
     base: {ref: 'main', sha: BASE},
     head: {ref: policy.RELEASE_BRANCH, sha: HEAD, repo: {full_name: 'owner/repo'}},
@@ -164,9 +164,29 @@ test('release metadata rejects a fake bot and non-regular files', async () => {
   await assert.rejects(policy.validateReleaseMetadata({github: normal.github, context, env}), /CHANGELOG.md must be a regular file/);
 });
 
-test('release metadata rejects a bot login whose App ID does not match', async () => {
+test('privileged merge rejects a bot login whose App ID does not match', async () => {
   const fixture = metadataFixture({appId: 999});
-  await assert.rejects(policy.validateReleaseMetadata({github: fixture.github, context, env}), /App ID/);
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /App ID/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('read-only metadata validates the pinned bot without a private App lookup', async () => {
+  const fixture = metadataFixture();
+  fixture.github.rest.apps.getBySlug = async () => { throw Object.assign(Error('private App forbidden'), {status: 403}); };
+  assert.equal((await policy.validateReleaseMetadata({github: fixture.github, context, env})).kind, 'release');
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /private App forbidden/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('release metadata rejects missing, malformed or mismatched bot user IDs', async () => {
+  for (const userId of [undefined, '', '0', '-1', '0456', '456.0', '9007199254740992']) {
+    const fixture = metadataFixture();
+    await assert.rejects(policy.validateReleaseMetadata({github: fixture.github, context, env: {...env, RELEASE_BOT_USER_ID: userId}}), /identity environment/);
+  }
+  for (const user of [{id: 999}, {id: undefined}, {id: '456'}, {type: 'User'}, {login: 'other[bot]'}]) {
+    const fixture = metadataFixture({pulls: [releasePull({user: {...releasePull().user, ...user}})]});
+    await assert.rejects(policy.validateReleaseMetadata({github: fixture.github, context, env}), /configured bot/);
+  }
 });
 
 test('release metadata fails closed when changed_files does not match the complete list', async () => {

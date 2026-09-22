@@ -8,7 +8,16 @@ const path = require('node:path');
 const {test} = require('node:test');
 const {enabled, draftState, localAssets, publish} = require('../.github/scripts/publish-release.cjs');
 
-const policyEnv = {RELEASE_BOT_LOGIN: 'release-bot[bot]', RELEASE_BOT_APP_ID: '1234'};
+const policyEnv = {RELEASE_BOT_LOGIN: 'release-bot[bot]', RELEASE_BOT_USER_ID: '456', RELEASE_BOT_APP_ID: '1234'};
+
+test('private App lookup failure blocks publication before asset writes', async t => {
+  const local = artifacts(t);
+  const fixture = fakeGitHub();
+  fixture.github.rest.apps.getBySlug = async () => { throw Object.assign(Error('private App forbidden'), {status: 403}); };
+  await assert.rejects(publish({...fixture, directory: local.directory, env: policyEnv}), /private App forbidden/);
+  assert.equal(fixture.calls.uploads.length, 0);
+  assert.equal(fixture.calls.updates.length, 0);
+});
 
 function artifacts(t, tag = 'v1.0.4') {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'win-mix-publish-test-'));
@@ -43,7 +52,7 @@ function fakeGitHub(options = {}) {
     title: `chore(main): release ${version}`,
     merged_at: '2026-09-21T00:00:00Z',
     merge_commit_sha: sha,
-    user: {login: policyEnv.RELEASE_BOT_LOGIN, type: 'Bot'},
+    user: {id: 456, login: policyEnv.RELEASE_BOT_LOGIN, type: 'Bot'},
     performed_via_github_app: {id: Number(policyEnv.RELEASE_BOT_APP_ID)},
     base: {ref: 'main', sha: baseSha},
     head: {ref: 'release-please--branches--main', sha: headSha, repo: {full_name: 'owner/repo'}},
