@@ -115,7 +115,7 @@ try {
         } finally { Stop-Fixture $directory $process }
     }
     Write-Output 'PASS: healthy shutdown, nonzero exit after shutdown, and a still-running app.'
-    $other = New-Target 'unrelated'
+    $other = New-Target 'unrelated-aa'
     $process = Start-Fixture $other 'stubborn'
     try {
         Run-Installer $installer (New-Target 'other-target') $true
