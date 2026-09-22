@@ -103,12 +103,18 @@ function propsVersion(text) {
   return parseStableVersion(matches[0][1]);
 }
 
-async function appIdentity(github, pr, env) {
+function releaseAuthor(pr, env) {
   const login = env.RELEASE_BOT_LOGIN;
+  const userId = env.RELEASE_BOT_USER_ID;
+  invariant(typeof login === 'string' && login.endsWith('[bot]') && /^[1-9]\d*$/.test(String(userId || '')) && Number.isSafeInteger(Number(userId)), 'Release bot user identity environment is missing or invalid.');
+  invariant(pr?.user?.login === login && pr.user.type === 'Bot' && Number.isSafeInteger(pr.user.id) && String(pr.user.id) === String(userId), 'Release pull request author is not the configured bot.');
+}
+
+async function appIdentity(github, pr, env) {
+  releaseAuthor(pr, env);
   const appId = env.RELEASE_BOT_APP_ID;
-  invariant(typeof login === 'string' && login && /^(0|[1-9]\d*)$/.test(String(appId || '')), 'Release bot identity environment is missing or invalid.');
-  invariant(pr?.user?.login === login && pr.user.type === 'Bot', 'Release pull request author is not the configured bot.');
-  const slug = login.endsWith('[bot]') ? login.slice(0, -5) : login;
+  invariant(/^[1-9]\d*$/.test(String(appId || '')) && Number.isSafeInteger(Number(appId)), 'Release App identity environment is missing or invalid.');
+  const slug = env.RELEASE_BOT_LOGIN.slice(0, -5);
   const app = (await github.rest.apps.getBySlug({app_slug: slug}))?.data;
   invariant(app?.slug === slug && String(app.id) === String(appId), 'Release bot login does not match the configured GitHub App ID.');
 }
@@ -169,7 +175,8 @@ async function validateReleaseMetadata({github, context, env = process.env, pull
 
   invariant(files.length === METADATA_FILES.length && METADATA_FILES.every(path => files.some(file => file.filename === path)), 'Release metadata changes must contain exactly VERSION, CHANGELOG.md, and .release-please-manifest.json.');
   invariant(files.every(file => file.status === 'added' || file.status === 'modified'), 'Release metadata files must be regular added or modified files.');
-  await appIdentity(github, pr, env);
+  // PR jobs have no credentials to look up a private App. Pin its immutable bot user ID.
+  releaseAuthor(pr, env);
   invariant(pr.base?.ref === MAIN_BRANCH, 'Release pull request must target main.');
   invariant(pr.head?.ref === RELEASE_BRANCH, 'Release pull request has the wrong branch.');
   invariant(pr.head?.repo?.full_name === `${repo.owner}/${repo.repo}`, 'Release pull request branch must be in the same repository.');
@@ -301,6 +308,7 @@ async function assertReleaseCommit({github, context, env = process.env, sha, ver
   invariant(pr.merged_at && pr.merge_commit_sha === sha, 'Release commit must exactly match its merged pull request.');
   invariant(pr.title === `chore(main): release ${parsedVersion.text}`, 'Release commit pull request has the wrong title or version.');
   const metadata = await validateReleaseMetadata({github, context, env, pullRequest: pr});
+  await appIdentity(github, metadata.pr, env);
   invariant(metadata.kind === 'release' && metadata.newVersion === parsedVersion.text, 'Release commit metadata does not match its version.');
   return {pr: metadata.pr, metadata};
 }
@@ -346,6 +354,7 @@ async function autoMergeRelease({github, readGithub = github, context, core, env
   const pr = await currentReleasePullRequest(github, repo);
   if (!pr) return {eligible: false, reason: 'no-release-pr'};
   const metadata = await validateReleaseMetadata({github, context, env, pullRequest: pr});
+  await appIdentity(github, metadata.pr, env);
   invariant(metadata.kind === 'release', 'Release branch does not contain a valid release pull request.');
   if (!metadata.automatic) {
     core?.notice?.(`Release pull request #${pr.number} is a major release and requires manual merge.`);

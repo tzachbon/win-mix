@@ -32,6 +32,7 @@ jobs:
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         env:
           RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
+          RELEASE_BOT_USER_ID: ${{ vars.RELEASE_BOT_USER_ID }}
           RELEASE_BOT_APP_ID: ${{ vars.RELEASE_BOT_APP_ID }}
         with:
           script: |
