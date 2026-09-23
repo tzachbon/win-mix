@@ -78,7 +78,7 @@ $file = if ($stage -eq 'application') { Join-Path $Path 'win-mix.dll' } else { $
         Set-Content "$installer.defender.json" 'stale'
         $message = ''
         try {
-            & (Join-Path $scratch 'build.ps1') -Dotnet (Join-Path $scratch 'dotnet.ps1') -InnoCompiler (Join-Path $scratch 'inno.ps1') -OutputDirectory $scratch
+            & (Join-Path $scratch 'build.ps1') -Dotnet (Join-Path $scratch 'dotnet.ps1') -InnoCompiler (Join-Path $scratch 'inno.ps1') -OutputDirectory $scratch -ScanWithDefender
         } catch { $message = $_.Exception.Message }
         if ($failure) {
             $expectedError = if ($failure -eq 'evidence') { 'Evidence publication failed.' } else { 'Defender scan failed or detected a threat.' }
@@ -97,6 +97,19 @@ $file = if ($stage -eq 'application') { Join-Path $Path 'win-mix.dll' } else { $
         if (($global:releaseStages -join ',') -cne $expected) { throw 'Incorrect scan/package ordering.' }
     }
     Write-Output 'Release scan ordering, failure gates, stale evidence and successful sidecars passed.'
+    $global:releaseStages.Clear()
+    $global:failScan = 'application'
+    foreach ($suffix in '.defender.json', '.defender.json.tmp', '.application-scan.log', '.installer-scan.log') {
+        Set-Content "$installer$suffix" 'stale'
+    }
+    & (Join-Path $scratch 'build.ps1') -Dotnet (Join-Path $scratch 'dotnet.ps1') -InnoCompiler (Join-Path $scratch 'inno.ps1') -OutputDirectory $scratch
+    if (($global:releaseStages -join ',') -ne 'package') { throw 'Default build invoked a scanner.' }
+    foreach ($suffix in '.defender.json', '.defender.json.tmp', '.application-scan.log', '.installer-scan.log') {
+        if (Test-Path "$installer$suffix") { throw 'Default build retained scan evidence.' }
+    }
+    $hash = (Get-FileHash $installer).Hash.ToLowerInvariant()
+    if ((Get-Content "$installer.sha256") -cne "$hash  win-mix-Setup-1.0.1-x64.exe") { throw 'Default checksum mismatch.' }
+    Write-Output 'Default build packages without scanning and clears stale scan evidence.'
 } finally {
     # This unique directory was created above; validate its absolute parent before cleanup.
     $item = Get-Item -LiteralPath $scratch
