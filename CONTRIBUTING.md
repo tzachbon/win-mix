@@ -13,6 +13,7 @@ dotnet run --project Tests/GestureTests.csproj -c Release
 dotnet run --project Tests/UpdateTests/UpdateTests.csproj -c Release
 ./Tests/ReleaseChecks.ps1
 ./Tests/DefenderChecks.ps1
+./Tests/DefenderDiagnosticChecks.ps1
 ```
 
 The first command runs deterministic gesture and channel-rule checks without audio hardware. The second runs the updater test suite. The release and Defender checks exercise version guards, scan failures, changed artifacts, and evidence cleanup with harmless fixtures.
@@ -32,9 +33,9 @@ To publish the self-contained app and compile the installer, install Inno Setup 
 ./build.ps1 -Dotnet dotnet -InnoCompiler 'C:\path\to\ISCC.exe'
 ```
 
-Replace the example compiler path with your local path. The script reruns gesture and updater checks, performs a locked publish, checks published resources and versions, then scans the payload and compiled installer with Microsoft Defender. Defender must be available in normal mode with current signatures updated within 48 hours. Detection, scan failure, or changed files aborts the build and removes success sidecars. The custom scan uses `-DisableRemediation`, which does not disable real-time protection. Do not add exclusions or restore quarantined files to make a build pass.
+Replace the example compiler path with your local path. The script reruns gesture and updater checks, performs a locked publish, checks published resources and versions, then writes the installer and SHA-256 checksum. Builds and CI do not request Defender scans by default. Windows real-time protection remains unchanged.
 
-The output directory contains the installer, SHA-256 sidecar, `.defender.json` evidence, and `*-scan.log` output. Logs describe custom-scan detections that may not appear in Protection History. CI keeps the installer and checksum in the `installer` artifact and scan evidence separately in `defender-evidence`. A clean scan applies only to the exact bytes and recorded definitions, not future definitions or an unavailable quarantined file.
+To explicitly scan the payload and installer, add `-ScanWithDefender` to the build command. This requires Defender in normal mode with current signatures updated within 48 hours. Detection, scan failure, or changed files aborts that build. The opt-in scan writes `.defender.json` evidence and `*-scan.log` output using `-DisableRemediation`, which does not disable real-time protection. Every build removes stale scan evidence, including builds without scans. Do not add exclusions or restore quarantined files to make a build pass. A clean scan applies only to the exact bytes and recorded definitions, not future definitions or an unavailable quarantined file.
 
 Output goes to the parent of the checkout by default. `-OutputDirectory` changes that destination. The script replaces the checkout's `publish` directory before publishing, so save any files you need from that directory first.
 
@@ -60,6 +61,16 @@ dotnet run --project Tests/AudioProbe/AudioProbe.csproj -- --exercise
 Gesture and selection changes can be checked with `Tests/GestureTests.csproj`. Audio-device and session changes depend on real Windows endpoints; use the probe with care and record any manual checks performed. Do not treat a successful source build as proof of interactive or clean-machine behavior. Existing gaps are recorded in [open-source readiness verification](docs/research/open-source-readiness-verification.md).
 
 ## Diagnostics
+
+For a local report when Win Mix fails to start, run:
+
+```powershell
+./diagnose-defender.ps1 | ConvertTo-Json -Depth 4
+```
+
+This manual, read-only check reports missing `win-mix.exe`/`win-mix.dll` files and existing Defender file detections under `%LOCALAPPDATA%\Programs\Mix.Native`. Use `-InstallDirectory 'C:\path\to\Win Mix'` for a different installation. It works even when the app cannot start. It uses [Get-MpThreatDetection](https://learn.microsoft.com/en-us/powershell/module/defender/get-mpthreatdetection) and does not start a scan, upload files, restore quarantine or change protection. A history read failure is reported as an error, not an empty result.
+
+History includes past detections, and `ActionSuccess` describes the recorded action, not current safety. No matching records is not a clean bill of health, and missing files alone do not prove quarantine. Only matching `file:_` resources are included, with paths relative to the selected installation. Check Windows Security > Protection history for current details. This diagnostic does not fix or establish the cause of an antivirus detection.
 
 Win Mix stores per-user data under `%LOCALAPPDATA%\Mix.Native`:
 
