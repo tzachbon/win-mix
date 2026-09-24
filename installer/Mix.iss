@@ -53,6 +53,62 @@ Type: dirifempty; Name: "{localappdata}\Mix.Native"
 [Code]
 var
   FirstInstall: Boolean;
+  StopMixError: String;
+
+type
+  TMixProcessState = (msUnknown, msStopped, msRunning);
+
+function CompareStringOrdinal(const Left: String; LeftLength: Integer;
+  const Right: String; RightLength, IgnoreCase: Integer): Integer;
+  external 'CompareStringOrdinal@kernel32.dll stdcall';
+
+function GetLongPathName(const ShortPath, LongPath: String; BufferLength: Cardinal): Cardinal;
+  external 'GetLongPathNameW@kernel32.dll stdcall';
+
+function NormalizeMixPath(const Path: String): String;
+var
+  Buffer: String;
+  Count: Cardinal;
+begin
+  Result := Path;
+  if Copy(Result, 1, 8) = '\\?\UNC\' then Result := '\\' + Copy(Result, 9, Length(Result))
+  else if Copy(Result, 1, 4) = '\\?\' then Delete(Result, 1, 4);
+  if Length(Result) < 3 then RaiseException('Missing executable path.');
+  if not (((Result[2] = ':') and (Result[3] = '\')) or (Copy(Result, 1, 2) = '\\')) then
+    RaiseException('Executable path is not absolute.');
+  Result := ExpandFileName(Result);
+  SetLength(Buffer, 32768);
+  Count := GetLongPathName(Result, Buffer, Length(Buffer));
+  if (Count > 0) and (Count < Cardinal(Length(Buffer))) then Result := Copy(Buffer, 1, Count);
+end;
+
+function MixProcessState: TMixProcessState;
+var
+  Locator, Services, Processes, Path: Variant;
+  Target: String;
+  I: Integer;
+begin
+  Result := msUnknown;
+  try
+    Target := NormalizeMixPath(ExpandConstant('{app}\win-mix.exe'));
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Services := Locator.ConnectServer('', 'root\CIMV2');
+    Processes := Services.ExecQuery('SELECT ExecutablePath FROM Win32_Process WHERE Name = ''win-mix.exe''');
+    for I := 0 to Processes.Count - 1 do
+    begin
+      Path := Processes.ItemIndex(I).ExecutablePath;
+      if VarIsNull(Path) or VarIsEmpty(Path) then exit;
+      if CompareStringOrdinal(NormalizeMixPath(Path), -1, Target, -1, 1) = 2 then
+      begin
+        Result := msRunning;
+        exit;
+      end;
+    end;
+    Result := msStopped;
+  except
+    Log('Could not query Win Mix process state: ' + GetExceptionMessage);
+  end;
+end;
 
 function IsUpdate: Boolean;
 begin
@@ -123,24 +179,40 @@ function StopMix: Boolean;
 var
   ExitCode: Integer;
   Success: Boolean;
+  State: TMixProcessState;
 begin
-  Result := True;
-  if not FileExists(ExpandConstant('{app}\win-mix.exe')) then exit;
+  Result := False;
+  StopMixError := '';
   repeat
-    Success := Exec(ExpandConstant('{app}\win-mix.exe'), '--shutdown',
-      ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ExitCode);
-    if Success and (ExitCode = 0) then exit;
-    Result := False;
-    if SuppressibleMsgBox('Win Mix is still running. Exit Win Mix from its tray menu, then choose Retry.',
+    State := MixProcessState;
+    if State = msStopped then begin Result := True; exit; end;
+    StopMixError := 'Could not verify whether Win Mix is running. No files were changed. Close Win Mix and retry; see the setup log if this continues.';
+    if State = msRunning then
+    begin
+      Success := Exec(ExpandConstant('{app}\win-mix.exe'), '--shutdown',
+        ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ExitCode);
+      Log(Format('Win Mix shutdown: launched=%d, result=%d', [Ord(Success), ExitCode]));
+      State := MixProcessState;
+      if State = msStopped then begin Result := True; exit; end;
+      if State = msRunning then
+      begin
+        StopMixError := 'Win Mix is still running. Exit Win Mix from its tray menu, then choose Retry.';
+        if not Success or (ExitCode <> 0) then
+          StopMixError := 'The Win Mix shutdown command failed and Win Mix is still running. Exit it from its tray menu, then choose Retry.';
+      end;
+    end;
+    Log(StopMixError);
+    if IsUninstaller then begin if UninstallSilent then exit; end
+    else if WizardSilent then exit;
+    if SuppressibleMsgBox(StopMixError,
       mbError, MB_RETRYCANCEL, IDCANCEL) <> IDRETRY then exit;
-    Result := True;
   until False;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
-  if not StopMix then Result := 'Win Mix must exit before installation can continue.';
+  if not StopMix then Result := StopMixError;
 end;
 
 function InitializeUninstall: Boolean;

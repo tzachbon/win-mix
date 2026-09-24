@@ -1,0 +1,47 @@
+name: Release PR decision
+
+on:
+  workflow_run:
+    workflows: [CI, PR policy]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: release-automation-main
+  cancel-in-progress: false
+
+jobs:
+  decide:
+    if: github.event_name == 'workflow_run' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: win-mix
+      - name: Revalidate release PR and decide
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
+          RELEASE_BOT_USER_ID: ${{ vars.RELEASE_BOT_USER_ID }}
+          RELEASE_BOT_APP_ID: ${{ vars.RELEASE_BOT_APP_ID }}
+          RELEASE_POLICY_START_SHA: ${{ vars.RELEASE_POLICY_START_SHA }}
+          READ_TOKEN: ${{ github.token }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const readGithub = new github.constructor({auth:process.env.READ_TOKEN});
+            const result = await require('./.github/scripts/release-policy.cjs').autoMergeRelease({github, readGithub, context, core});
+            core.info(JSON.stringify(result));

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      release-sha:
+        type: string
+        default: ''
+      release-tag:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  windows:
+    name: Windows build
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release-sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Policy tests
+        shell: pwsh
+        run: node --test Tests/*.test.cjs Tests/site.test.mjs
+      - name: Install verified Inno Setup
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne '0362A383ED217D4C4239B5933866DD96D3EB2102737DA92F80F6057A4B40DF2F') { throw 'Inno Setup checksum mismatch.' }
+          $directory = Join-Path $env:RUNNER_TEMP 'inno'
+          $process = Start-Process $setup -ArgumentList "/CURRENTUSER /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$directory`"" -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Inno Setup installation failed.' }
+      - name: Test and package installer
+        shell: pwsh
+        env:
+          EXPECTED_TAG: ${{ inputs.release-tag }}
+        run: |
+          ./Tests/ReleaseChecks.ps1
+          ./Tests/DefenderChecks.ps1
+          ./Tests/DefenderDiagnosticChecks.ps1
+          ./Tests/InstallerShutdownChecks.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe')
+          ./build.ps1 -InnoCompiler (Join-Path $env:RUNNER_TEMP 'inno/ISCC.exe') -OutputDirectory (Join-Path $env:RUNNER_TEMP 'release') -ExpectedTag $env:EXPECTED_TAG
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installer
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/release/*.exe
+            ${{ runner.temp }}/release/*.exe.sha256
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: defender-evidence
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/release/*.defender.json
+            ${{ runner.temp }}/release/*-scan.log
