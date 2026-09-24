@@ -12,5 +12,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="..\..\Platform\Update*.cs" Link="Platform\%(Filename)%(Extension)" />
     <Compile Include="..\..\Platform\Preferences.cs" Link="Platform\Preferences.cs" />
+    <Compile Include="..\..\Core\KeyboardBindings.cs" Link="Core\KeyboardBindings.cs" />
   </ItemGroup>
 </Project>

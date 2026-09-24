@@ -54,6 +54,7 @@ static class Native
     [DllImport("user32.dll")] public static extern uint TrackPopupMenu(nint menu,uint flags,int x,int y,int reserved,nint hwnd,nint rect);
     [DllImport("user32.dll")] public static extern bool DestroyMenu(nint menu);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(nint hwnd);
+    [DllImport("user32.dll")] public static extern nint GetForegroundWindow();
     [DllImport("wtsapi32.dll")] public static extern bool WTSRegisterSessionNotification(nint hwnd,uint flags);
     [DllImport("wtsapi32.dll")] public static extern bool WTSUnRegisterSessionNotification(nint hwnd);
     [DllImport("comctl32.dll")] public static extern bool SetWindowSubclass(nint hwnd,SubclassProc callback,nuint id,nuint data);

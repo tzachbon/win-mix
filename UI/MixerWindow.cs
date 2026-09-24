@@ -18,10 +18,12 @@ namespace Mix.UI;
 public sealed class MixerWindow : Window
 {
     readonly AppWindow appWindow;
+    readonly nint hwnd;
     readonly TitleBar titleBar = new() { Height = 32 };
     readonly Grid mixerView = new();
     readonly Grid settingsView = new();
     readonly StackPanel sessionPanel = new() { Spacing = 12 };
+    readonly KeyboardSettingsView keyboardSettings = new();
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 3 };
     readonly Button settingsButton = new();
     UpdatePanel updatePanel = null!;
@@ -34,6 +36,7 @@ public sealed class MixerWindow : Window
     readonly Dictionary<string, AudioControls> sessions = new();
     readonly Dictionary<string, ComboBox> devicesByChannel = new();
     ToggleSwitch startupToggle = null!;
+    KeyboardBindings activeKeyboardBindings = KeyboardBindings.Default;
     DeviceChoice[] devices = [];
     AudioState? state;
     string sessionFingerprint = "";
@@ -53,7 +56,7 @@ public sealed class MixerWindow : Window
     {
         Title = "Win Mix";
         Content = BuildUi();
-        var hwnd = WindowNative.GetWindowHandle(this);
+        hwnd = WindowNative.GetWindowHandle(this);
         appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(hwnd));
         appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         ExtendsContentIntoTitleBar = true;
@@ -62,9 +65,15 @@ public sealed class MixerWindow : Window
         titleBar.ActualThemeChanged += (_, _) => UpdateCaptionColors();
         appWindow.Closing += (_, args) =>
         {
+            keyboardSettings.LeaveSettings();
             if (destroying) return;
             args.Cancel = true;
             appWindow.Hide();
+        };
+        Activated += (_, args) =>
+        {
+            if (args.WindowActivationState == WindowActivationState.Deactivated)
+                keyboardSettings.CancelRecording();
         };
     }
 
@@ -156,6 +165,7 @@ public sealed class MixerWindow : Window
             devicesByChannel.Add(channel, combo);
             content.Children.Add(combo);
         }
+        content.Children.Add(keyboardSettings);
         startupToggle = new ToggleSwitch { Header = "Start with Windows", OffContent = "Off", OnContent = "On" };
         AutomationProperties.SetName(startupToggle, "Start Win Mix with Windows");
         startupToggle.Toggled += (_, _) => { if (!rendering) StartupChanged?.Invoke(startupToggle.IsOn); };
@@ -223,6 +233,24 @@ public sealed class MixerWindow : Window
 
     public void Update(AudioState value) => OnUi(() => Render(value));
     public void SetShortcutUsed(bool used) => shortcutCard.Visibility = used ? Visibility.Collapsed : Visibility.Visible;
+
+    public void ConfigureKeyboard(KeyboardBindings active, Func<nint, Task<int[]?>> record,
+        Action cancelRecording, Func<KeyboardBindings, Task<string?>> apply) => OnUi(() =>
+    {
+        activeKeyboardBindings = active;
+        keyboardSettings.Configure(active, hwnd, record, cancelRecording, apply);
+        UpdateShortcutHint();
+    });
+
+    public void SetKeyboardBindings(KeyboardBindings bindings) => OnUi(() =>
+    {
+        activeKeyboardBindings = bindings;
+        keyboardSettings.SetKeyboardBindings(bindings);
+        UpdateShortcutHint();
+    });
+
+    void UpdateShortcutHint() => shortcutCard.Message =
+        $"Hold {activeKeyboardBindings.OpeningLabel}. Hover or use ← → to select, scroll or ↑ ↓ to adjust, and {activeKeyboardBindings.MuteLabel} to mute.";
 
     void Render(AudioState value)
     {
@@ -342,6 +370,7 @@ public sealed class MixerWindow : Window
 
     public void ShowSettings(bool show) => OnUi(() =>
     {
+        if (!show) keyboardSettings.LeaveSettings();
         showingSettings = show;
         mixerView.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
         settingsView.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
@@ -364,7 +393,7 @@ public sealed class MixerWindow : Window
         Activate();
     }
 
-    public void Destroy() => OnUi(() => { destroying = true; Close(); });
+    public void Destroy() => OnUi(() => { keyboardSettings.LeaveSettings(); destroying = true; Close(); });
 
     void OnUi(Action action)
     {

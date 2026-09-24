@@ -12,9 +12,13 @@ Download the per-user installer from the [latest release](https://github.com/tza
 
 Hold **Left Ctrl + Left Alt** to show quick controls at the bottom center of the current monitor. The row is **Main, Game, Chat, Media**. Main controls the headset master output selected in Settings. Hover a channel or use Left/Right to select it; scroll or use Up/Down to change its volume by two percentage points; press M to toggle mute. Release either modifier or press Escape to hide the controls. Release both keys before starting another gesture.
 
+In **Settings > Keyboard shortcuts**, record a replacement opening shortcut or mute key. Release all recorded keys, then choose **Apply** to save and activate both bindings. **Cancel** discards edits. **Restore defaults** stages Left Ctrl + Left Alt and M until you apply them. Mute is one additional key pressed while the opening shortcut is held. The hints and tray tooltip follow the active bindings.
+
+Opening shortcuts can be a single key or a simultaneous combination, including modifier-only combinations. Arrow keys and Escape stay reserved, and the opening shortcut cannot contain the selected mute key. Single-key shortcuts show a warning because they replace that key's normal action. Mix consumes the key that completes a shortcut and its repeat/release events. Earlier keys in a combination may already have reached the foreground application. Windows-reserved shortcuts such as Ctrl+Alt+Delete and Win+L are unsupported. Conflicts with other shortcut tools and hardware key rollover are not automatically detected.
+
 The tray menu opens Mixer, Settings, or exits. Closing Mixer keeps Win Mix in the tray. Settings lets you choose a Windows output for each channel and the headset master, and control the startup option. A missing saved device remains unavailable until that same endpoint returns or you choose another one.
 
-Win Mix controls Windows endpoint levels and active app-session levels. It does not change application routing. It does not integrate with a headset dial, ensure game-specific overlay compatibility, or synchronize Sonar's internal mixer. Levels come from Windows; muting preserves volume, and changing volume preserves mute. Settings store endpoint IDs and the selected quick-control channel, not audio levels.
+Win Mix controls Windows endpoint levels and active app-session levels. It does not change application routing. It does not integrate with a headset dial, ensure game-specific overlay compatibility, or synchronize Sonar's internal mixer. Levels come from Windows; muting preserves volume, and changing volume preserves mute. Settings store endpoint IDs, keyboard shortcuts, and the selected quick-control channel, not audio levels.
 
 This build is unsigned, so Windows may show a reputation warning.
 
