@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {test} = require('node:test');
-const {enabled, draftState, localAssets, publish} = require('../.github/scripts/publish-release.cjs');
+const {enabled, draftState, releaseGate, localAssets, publish} = require('../.github/scripts/publish-release.cjs');
 
 const policyEnv = {RELEASE_BOT_LOGIN: 'release-bot[bot]', RELEASE_BOT_USER_ID: '456', RELEASE_BOT_APP_ID: '1234'};
 
@@ -46,6 +46,7 @@ function fakeGitHub(options = {}) {
   const assets = [...(options.assets || [])];
   const calls = {uploads: [], updates: []};
   const outputs = {};
+  const notices = [];
   const pr = {
     number: 42,
     changed_files: 3,
@@ -82,6 +83,11 @@ function fakeGitHub(options = {}) {
       },
       repos: {
         listReleases: async () => ({data: releases}),
+        listCommits: async () => ({data: [{sha}]}),
+        getReleaseByTag: async () => {
+          if (options.currentRelease) return {data: options.currentRelease};
+          throw Object.assign(Error('not found'), {status: 404});
+        },
         listReleaseAssets: async () => ({data: assets}),
         listPullRequestsAssociatedWithCommit: async ({page}) => ({data: page === 1 ? [{number: pr.number}] : []}),
         compareCommitsWithBasehead: async () => ({data: {status: options.ancestry || 'ahead'}}),
@@ -111,8 +117,8 @@ function fakeGitHub(options = {}) {
     },
   };
   return {
-    github, context: {repo}, core: {setOutput: (key, value) => outputs[key] = value, info() {}},
-    env: policyEnv, draft, assets, calls, outputs, sha,
+    github, context: {repo}, core: {setOutput: (key, value) => outputs[key] = value, info() {}, notice: value => notices.push(value)},
+    env: policyEnv, draft, assets, calls, outputs, notices, sha,
     expected: {id: draft.id, tag: draft.tag_name, sha},
   };
 }
@@ -133,6 +139,24 @@ test('local assets require the exact files and checksum bytes', t => {
 test('a false or missing repository flag pauses automation', async () => {
   assert.equal(await enabled(fakeGitHub({variable: 'false'}).github, {owner: 'owner', repo: 'repo'}), false);
   assert.equal(await enabled(fakeGitHub({missingVariable: true}).github, {owner: 'owner', repo: 'repo'}), false);
+});
+
+test('release gate reports unpublished versions while paused and permits guarded recovery', async () => {
+  const published = {tag_name: 'v1.0.3', draft: false, prerelease: false};
+  const paused = fakeGitHub({variable: 'false', releases: [published]});
+  await assert.rejects(releaseGate(paused), /Release 1.0.4 was merged but has no published release/);
+  assert.deepEqual(paused.outputs, {});
+  assert.equal(paused.calls.updates.length, 0);
+  await assert.rejects(releaseGate(fakeGitHub({missingVariable: true, releases: [published]})), /Release 1.0.4 was merged but has no published release/);
+
+  const current = fakeGitHub({variable: 'false', releases: [published], currentRelease: {tag_name: 'v1.0.4', draft: false}});
+  await releaseGate(current);
+  assert.equal(current.notices.length, 1);
+  assert.deepEqual(current.outputs, {});
+
+  const enabled = fakeGitHub({variable: 'true', releases: [published]});
+  await releaseGate(enabled);
+  assert.equal(enabled.outputs.create, 'true');
 });
 
 test('publish stops before upload when the flag is missing', async t => {

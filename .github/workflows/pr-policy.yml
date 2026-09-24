@@ -34,6 +34,7 @@ jobs:
           RELEASE_BOT_LOGIN: ${{ vars.RELEASE_BOT_LOGIN }}
           RELEASE_BOT_USER_ID: ${{ vars.RELEASE_BOT_USER_ID }}
           RELEASE_BOT_APP_ID: ${{ vars.RELEASE_BOT_APP_ID }}
+          RELEASE_AUTOMATION_ENABLED: ${{ vars.RELEASE_AUTOMATION_ENABLED }}
         with:
           script: |
-            await require('./.github/scripts/release-policy.cjs').validateReleaseMetadata({github, context});
+            await require('./.github/scripts/release-policy.cjs').validateReleaseMetadataCheck({github, context});
