@@ -47,7 +47,7 @@ sealed class Preferences
     public void SetBinding(string channel, string? id, DeviceChoice[] devices)
     {
         Bindings[channel] = id;
-        ReconnectRecognized[channel] = id != null && MixRules.Discover(channel, devices.Where(d => d.Id == id)) == id;
+        ReconnectRecognized[channel] = id != null && MixRules.Discover(channel, devices) == id;
     }
     public bool RecoverBinding(string channel, string oldId, string newId)
     {
@@ -66,7 +66,7 @@ sealed class Preferences
             { Bindings[level.Key] = level.DeviceId; changed = true; }
             if (!ReconnectRecognized.ContainsKey(level.Key) && Bindings[level.Key] == level.DeviceId && state.Devices.Any(d => d.Id == level.DeviceId))
             {
-                ReconnectRecognized[level.Key] = MixRules.Discover(level.Key, state.Devices.Where(d => d.Id == level.DeviceId)) == level.DeviceId;
+                ReconnectRecognized[level.Key] = MixRules.Discover(level.Key, state.Devices) == level.DeviceId;
                 changed = true;
             }
         }

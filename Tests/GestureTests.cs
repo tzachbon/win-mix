@@ -426,6 +426,16 @@ internal static class GestureTests
         var preferences = new Mix.Platform.Preferences();
         preferences.SetBinding("Master", "master", devices);
         Is(true, preferences.ReconnectRecognized["Master"], "recognized selection enables reconnect");
+        DeviceChoice[] ambiguousMasters =
+        [
+            devices[1],
+            new("second-master", "Headphones (Arctis Nova Pro Wireless)")
+        ];
+        preferences.SetBinding("Master", "master", ambiguousMasters);
+        Is(false, preferences.ReconnectRecognized["Master"], "ambiguous selection does not enable reconnect");
+        Is("master", MixRules.ResolveBinding("Master", true, "master", preferences.ReconnectRecognized["Master"], [ambiguousMasters[1]]),
+            "ambiguous selection stays selected after disconnect");
+        preferences.SetBinding("Master", "master", devices);
         preferences.SetBinding("Game", "other", devices);
         Is(false, preferences.ReconnectRecognized["Game"], "custom selection does not reconnect");
         preferences.SetBinding("Chat", null, devices);
@@ -453,6 +463,10 @@ internal static class GestureTests
         var legacy = System.Text.Json.JsonSerializer.Deserialize<Mix.Platform.Preferences>("{\"Bindings\":{\"Master\":\"master\"}}")!;
         Is(true, legacy.Sync(recovered), "active legacy binding gains reconnect eligibility");
         Is(true, legacy.ReconnectRecognized["Master"], "legacy headset is recognized");
+        var ambiguousLegacy = System.Text.Json.JsonSerializer.Deserialize<Mix.Platform.Preferences>("{\"Bindings\":{\"Master\":\"master\"}}")!;
+        Is(true, ambiguousLegacy.Sync(new AudioState(ambiguousMasters, [new Level("Master", "Master", "master", 1, false, true)], [], null)),
+            "legacy binding classification runs against all active devices");
+        Is(false, ambiguousLegacy.ReconnectRecognized["Master"], "ambiguous legacy binding does not enable reconnect");
         Is(0f, MixRules.Clamp(0), "clamp accepts zero");
         Is(1f, MixRules.Clamp(1), "clamp accepts one");
         Is(0f, MixRules.Clamp(-1), "clamp floors at zero");

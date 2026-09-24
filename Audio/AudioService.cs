@@ -64,7 +64,7 @@ public sealed class AudioService : IDisposable
     public void Bind(string channel, string? id) => Post(() =>
     {
         bindings[channel] = id;
-        reconnectRecognized[channel] = id != null && MixRules.Discover(channel, choices.Where(d => d.Id == id)) == id;
+        reconnectRecognized[channel] = id != null && MixRules.Discover(channel, choices) == id;
         Rebuild();
     });
     public void SetLevel(string channel, float value) => Post(() =>
@@ -105,7 +105,7 @@ public sealed class AudioService : IDisposable
         {
             bool hasBinding = bindings.TryGetValue(channel, out var id);
             if (id != null && choices.Any(d => d.Id == id) && !reconnectRecognized.ContainsKey(channel))
-                reconnectRecognized[channel] = MixRules.Discover(channel, choices.Where(d => d.Id == id)) == id;
+                reconnectRecognized[channel] = MixRules.Discover(channel, choices) == id;
             var resolved = MixRules.ResolveBinding(channel, hasBinding, id, reconnectRecognized.GetValueOrDefault(channel), choices);
             if (id != null && resolved != null && resolved != id) bindingRecovered?.Invoke(channel, id, resolved);
             bindings[channel] = resolved;
