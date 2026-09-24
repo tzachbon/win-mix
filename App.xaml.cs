@@ -10,6 +10,7 @@ namespace Mix;
 public partial class App : Application
 {
     readonly Preferences preferences;
+    KeyboardBindings activeKeyboard;
     DispatcherQueue dispatcher = null!;
     Instance? instance;
     AudioService? audio;
@@ -29,6 +30,7 @@ public partial class App : Application
         };
         InitializeComponent();
         preferences = Preferences.Load();
+        activeKeyboard = preferences.Keyboard;
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
@@ -42,7 +44,7 @@ public partial class App : Application
             if (preferences.RecoverBinding(key, oldId, newId)) Save();
         }));
         audio.Changed += value => Queue(() => Update(value));
-        host = new DesktopHost();
+        host = new DesktopHost(activeKeyboard);
         host.Command += command => Queue(() => Handle(command));
         try { host.Start(); }
         catch (Exception ex) { OpenMixer(false); mixer!.SetError("Quick controls could not start: " + ex.Message); }
@@ -72,6 +74,7 @@ public partial class App : Application
         if (mixer == null)
         {
             mixer = new MixerWindow();
+            mixer.ConfigureKeyboard(activeKeyboard, owner => host!.RecordAsync(owner), () => host!.CancelRecording(), ApplyKeyboard);
             mixer.UpdateRequested += async () => await updates!.RunAsync();
             mixer.UpdateCanceled += () => updates!.Cancel();
             mixer.LevelChanged += (key, value) => audio!.SetLevel(key, value);
@@ -93,6 +96,17 @@ public partial class App : Application
         mixer.ShowSettings(settings);
         mixer.Activate();
     }
+    async Task<string?> ApplyKeyboard(KeyboardBindings bindings)
+    {
+        string? error = await preferences.ApplyKeyboardAsync(bindings, value => host!.SetBindingsAsync(value));
+        if (error == null)
+        {
+            activeKeyboard = bindings;
+            mixer?.SetKeyboardBindings(bindings);
+            overlay?.SetKeyboardBindings(bindings);
+        }
+        return error;
+    }
     void Handle(HostCommand command)
     {
         string channel = MixRules.Channels[preferences.Selected];
@@ -100,6 +114,7 @@ public partial class App : Application
         {
             case "Show":
                 if (overlay == null) { overlay = new OverlayWindow(); overlay.BoundsChanged += bounds => host!.SetBounds(bounds); }
+                overlay.SetKeyboardBindings(activeKeyboard);
                 overlay.Update(state, preferences.Selected);
                 host!.SetBounds(overlay.ShowAtBottom());
                 if (!preferences.HasUsedShortcut)

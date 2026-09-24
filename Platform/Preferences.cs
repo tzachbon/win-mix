@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Win32;
 using Mix.Core;
 
@@ -10,11 +11,37 @@ sealed class Preferences
     public Dictionary<string,bool> ReconnectRecognized { get; set; } = new();
     public int Selected { get; set; } = 2;
     public bool HasUsedShortcut { get; set; }
+    public KeyboardBindings Keyboard { get; set; } = KeyboardBindings.Default;
     public static string DirectoryPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Mix.Native");
     public static string FilePath => Path.Combine(DirectoryPath,"settings.json");
-    public static Preferences Load()
+    public static Preferences Load(string? path = null)
     {
-        try { var p=JsonSerializer.Deserialize<Preferences>(File.ReadAllText(FilePath)); if(p?.Bindings!=null) {p.ReconnectRecognized ??= new();p.Selected=Math.Clamp(p.Selected,0,3);return p;} } catch { }
+        try
+        {
+            var root = JsonNode.Parse(File.ReadAllText(path ?? FilePath)) as JsonObject;
+            if (root is null)
+                return new();
+
+            JsonNode? keyboard = root[nameof(Keyboard)]?.DeepClone();
+            root.Remove(nameof(Keyboard));
+            var p = root.Deserialize<Preferences>();
+            if (p?.Bindings is not null)
+            {
+                try
+                {
+                    var parsed = keyboard?.Deserialize<KeyboardBindings>();
+                    p.Keyboard = parsed is not null && parsed.Validate() is null ? parsed : KeyboardBindings.Default;
+                }
+                catch
+                {
+                    p.Keyboard = KeyboardBindings.Default;
+                }
+                p.ReconnectRecognized ??= new();
+                p.Selected = Math.Clamp(p.Selected, 0, 3);
+                return p;
+            }
+        }
+        catch { }
         return new();
     }
     public void SetBinding(string channel, string? id, DeviceChoice[] devices)
@@ -47,10 +74,40 @@ sealed class Preferences
     }
     public void Save(string? path = null)
     {
-        path ??= FilePath;
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path+".tmp",JsonSerializer.Serialize(this));
-        File.Move(path+".tmp",path,true);
+        string target = path ?? FilePath;
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
+        File.WriteAllText(target+".tmp",JsonSerializer.Serialize(this));
+        File.Move(target+".tmp",target,true);
+    }
+
+    public async Task<string?> ApplyKeyboardAsync(KeyboardBindings candidate, Func<KeyboardBindings,Task> activate, string? path = null)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        ArgumentNullException.ThrowIfNull(activate);
+        if (candidate.Validate() is { } validationError)
+            return validationError;
+
+        KeyboardBindings previous = Keyboard;
+        Keyboard = candidate;
+        try
+        {
+            Save(path);
+        }
+        catch (Exception error)
+        {
+            Keyboard = previous;
+            return $"Could not save keyboard bindings: {error.Message}";
+        }
+
+        try
+        {
+            await activate(candidate);
+            return null;
+        }
+        catch (Exception error)
+        {
+            return $"Saved, but could not activate keyboard bindings: {error.Message}";
+    }
     }
     const string RunKey="Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     const string ApprovalKey="Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";

@@ -29,7 +29,9 @@ public sealed class OverlayWindow : Window
     readonly TextBlock[] muteStates = new TextBlock[4];
     readonly ProgressBar[] meters = new ProgressBar[4];
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 2 };
+    readonly TextBlock hintText = MixVisuals.Caption("");
     readonly Grid row = new() { ColumnSpacing = 12 };
+    KeyboardBindings activeKeyboardBindings = KeyboardBindings.Default;
     bool destroying;
     internal event Action<Native.Rect[]>? BoundsChanged;
 
@@ -116,12 +118,21 @@ public sealed class OverlayWindow : Window
         }
         Grid.SetRow(row, 2);
         root.Children.Add(row);
-        var hint = MixVisuals.Caption("← → select   ·   Scroll / ↑ ↓ volume   ·   M mute");
-        hint.HorizontalAlignment = HorizontalAlignment.Center;
-        Grid.SetRow(hint, 3);
-        root.Children.Add(hint);
+        hintText.HorizontalAlignment = HorizontalAlignment.Center;
+        Grid.SetRow(hintText, 3);
+        root.Children.Add(hintText);
+        UpdateKeyboardHint();
         return root;
     }
+
+    public void SetKeyboardBindings(KeyboardBindings bindings) => OnUi(() =>
+    {
+        activeKeyboardBindings = bindings;
+        UpdateKeyboardHint();
+    });
+
+    void UpdateKeyboardHint() => hintText.Text =
+        $"Hold {activeKeyboardBindings.OpeningLabel} to open · release to close   ·   ← → select   ·   Scroll / ↑ ↓ volume   ·   {activeKeyboardBindings.MuteLabel} mute";
 
     void BorderlessNonActivatingTopmost()
     {

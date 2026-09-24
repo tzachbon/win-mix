@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Mix.Core;
 
@@ -8,7 +9,11 @@ record HostCommand(string Kind, int Value = 0);
 sealed class DesktopHost : IDisposable
 {
     readonly Thread thread;
-    readonly Gesture gesture = new();
+    readonly KeyboardInput input;
+    Gesture gesture => input.Gesture;
+    readonly ConcurrentQueue<Action> operations = new();
+    TaskCompletionSource<int[]?>? recording;
+    nint recordingOwner;
     readonly Native.Hook keyboard, mouse;
     readonly Native.WndProc wndProc;
     readonly ManualResetEventSlim ready = new();
@@ -19,8 +24,9 @@ sealed class DesktopHost : IDisposable
     Exception? failure;
     int hovered = -1;
     public event Action<HostCommand>? Command;
-    public DesktopHost()
+    public DesktopHost(KeyboardBindings bindings)
     {
+        input = new(bindings);
         keyboard = Keyboard; mouse = Mouse; wndProc = WindowProc;
         thread = new Thread(Run) { IsBackground = true, Name = "Mix input and tray" };
     }
@@ -31,10 +37,77 @@ sealed class DesktopHost : IDisposable
         if (failure != null) throw failure;
     }
     public void SetBounds(Native.Rect[] rectangles) { lock (boundsLock) bounds = rectangles; }
+    Task OnHost(Action action)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!thread.IsAlive || failure != null || hwnd == 0)
+            return Task.FromException(new InvalidOperationException("The keyboard host is unavailable."));
+        operations.Enqueue(() =>
+        {
+            lock (completion)
+            {
+                if (completion.Task.IsCompleted) return;
+                try { action(); completion.TrySetResult(); }
+                catch (Exception ex) { completion.TrySetException(ex); }
+            }
+        });
+        if (!Native.PostMessageW(hwnd, 0x8003, 0, 0))
+            completion.TrySetException(new InvalidOperationException("Could not contact the keyboard host."));
+        return AwaitOperation(completion);
+    }
+    static async Task AwaitOperation(TaskCompletionSource completion)
+    {
+        try { await completion.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+        catch (TimeoutException)
+        {
+            // Either cancel a queued operation, or observe the action that already ran.
+            lock (completion)
+                if (!completion.Task.IsCompleted) { completion.TrySetCanceled(); throw; }
+            await completion.Task;
+        }
+    }
+    public Task SetBindingsAsync(KeyboardBindings bindings) => OnHost(() =>
+    {
+        if (bindings.Validate() is { } error) throw new ArgumentException(error);
+        EndRecording();
+        input.SetBindings(bindings);
+        hovered = -1;
+        Send("Hide");
+        Tray(1);
+    });
+    public async Task<int[]?> RecordAsync(nint owner)
+    {
+        var result = new TaskCompletionSource<int[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await OnHost(() =>
+        {
+            EndRecording();
+            if (Native.GetForegroundWindow() != owner) { result.TrySetResult(null); return; }
+            recording = result;
+            recordingOwner = owner;
+            input.BeginRecording();
+            Send("Hide");
+        });
+        return await result.Task;
+    }
+    public async void CancelRecording()
+    {
+        try { await OnHost(EndRecording); }
+        catch { /* A stopped host no longer captures input. */ }
+    }
+    void EndRecording()
+    {
+        input.CancelRecording();
+        input.Recorder.TakeCancelled();
+        input.Recorder.TakeCompleted();
+        recording?.TrySetResult(null);
+        recording = null;
+        recordingOwner = 0;
+    }
     void Send(string kind, int value = 0) => Command?.Invoke(new(kind, value));
     void Reset()
     {
-        gesture.InitializeHeld(Enumerable.Range(8,247).Where(k => (Native.GetAsyncKeyState(k) & 0x8000) != 0));
+        EndRecording();
+        input.InitializeHeld(Enumerable.Range(8,247).Where(k => (Native.GetAsyncKeyState(k) & 0x8000) != 0));
         hovered = -1;
         Send("Hide");
     }
@@ -62,6 +135,7 @@ sealed class DesktopHost : IDisposable
         catch (Exception ex) { failure = ex; ready.Set(); }
         finally
         {
+            recording?.TrySetResult(null);
             if (keyHook != 0) Native.UnhookWindowsHookEx(keyHook);
             if (mouseHook != 0) Native.UnhookWindowsHookEx(mouseHook);
             if (hwnd != 0) { Tray(2); Native.WTSUnRegisterSessionNotification(hwnd); Native.DestroyWindow(hwnd); }
@@ -70,13 +144,15 @@ sealed class DesktopHost : IDisposable
     }
     void Tray(uint operation)
     {
+        string tip = "Win Mix · Hold " + gesture.Bindings.OpeningLabel;
         var icon = new Native.NotifyIcon { Size=(uint)Marshal.SizeOf<Native.NotifyIcon>(), Hwnd=hwnd, Id=1, Flags=7, Callback=0x8001,
-            Icon=trayIcon != 0 ? trayIcon : Native.LoadIconW(0,(nint)32512), Tip="Win Mix · Hold Left Ctrl + Left Alt", Info="", InfoTitle="" };
+            Icon=trayIcon != 0 ? trayIcon : Native.LoadIconW(0,(nint)32512), Tip=tip.Length < 128 ? tip : tip[..124] + "…", Info="", InfoTitle="" };
         Native.Shell_NotifyIconW(operation,ref icon);
     }
     nint WindowProc(nint h,uint m,nuint w,nint l)
     {
         if (m == taskbar && taskbar != 0) Tray(0);
+        if (m == 0x8003) { while (operations.TryDequeue(out var operation)) operation(); return 0; }
         if (m == 0x8002) { Native.PostQuitMessage(0); return 0; }
         if (m == 0x2B1 || (m == 0x218 && (w == 7 || w == 18))) { Reset(); Send("Refresh"); }
         if (m == 0x11) return 1;
@@ -100,7 +176,15 @@ sealed class DesktopHost : IDisposable
     {
         if(code<0) return Native.CallNextHookEx(keyHook,code,message,data);
         var key=Marshal.PtrToStructure<Native.Keyboard>(data);
-        var result=gesture.Key((int)key.Key,message==0x100 || message==0x104,(key.Flags&0x10)!=0);
+        if (recording != null && Native.GetForegroundWindow() != recordingOwner) EndRecording();
+        var result=input.Key((int)key.Key,message==0x100 || message==0x104,(key.Flags&0x10)!=0);
+        if (input.Recorder.TakeCompleted() is { } keys)
+        {
+            recording?.TrySetResult(keys);
+            recording = null;
+            recordingOwner = 0;
+        }
+        if (input.Recorder.TakeCancelled()) EndRecording();
         if(result.Action is { } action)
         {
             if(action is GestureAction.Show or GestureAction.Left or GestureAction.Right) hovered=-1;

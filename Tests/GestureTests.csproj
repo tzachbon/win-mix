@@ -8,8 +8,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Core\Gesture.cs" Link="Gesture.cs" />
+    <Compile Include="..\Core\KeyboardBindings.cs" Link="KeyboardBindings.cs" />
+    <Compile Include="..\Core\ShortcutRecorder.cs" Link="ShortcutRecorder.cs" />
+    <Compile Include="..\Core\KeyboardInput.cs" Link="KeyboardInput.cs" />
+    <Compile Include="..\Core\KeyboardEditor.cs" Link="KeyboardEditor.cs" />
     <Compile Include="..\Core\Models.cs" Link="Models.cs" />
     <Compile Include="GestureTests.cs" />
+    <Compile Include="KeyboardInputTests.cs" />
+    <Compile Include="KeyboardEditorTests.cs" />
     <Compile Include="..\Platform\Preferences.cs" Link="Preferences.cs" />
   </ItemGroup>
 </Project>
