@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/tzachbon/win-mix/compare/v1.1.0...v1.2.0) (2026-09-24)
+
+
+### Features
+
+* add editable keyboard shortcuts in settings ([#8](https://github.com/tzachbon/win-mix/issues/8)) ([b22d8da](https://github.com/tzachbon/win-mix/commit/b22d8da13726e53449fbeda605cc317964188296))
+
+
+### Bug Fixes
+
+* make Defender scans opt-in and add local diagnostics ([#15](https://github.com/tzachbon/win-mix/issues/15)) ([a22af8b](https://github.com/tzachbon/win-mix/commit/a22af8b22924c2af70bb68d68cef86b34df12d21))
+
 ## [1.1.0](https://github.com/tzachbon/win-mix/compare/v1.0.3...v1.1.0) (2026-09-22)
 
 
