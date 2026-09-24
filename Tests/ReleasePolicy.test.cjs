@@ -392,12 +392,41 @@ test('corrected titles use the latest check attempt on the same head', async () 
   assert.equal(result.merged, true);
 });
 
-test('a newer failed or queued check invalidates an older success', async () => {
-  for (const state of [{status: 'completed', conclusion: 'failure'}, {status: 'queued', conclusion: null}]) {
+test('a newer failed check invalidates an older success', async () => {
+  const fixture = metadataFixture();
+  const checks = successfulChecks();
+  checks.push({...checks[0], id: 10, conclusion: 'failure'});
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(checks), context: autoContext(), env}), /not a current successful/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('missing and newer pending checks wait without merging, then merge after success', async () => {
+  for (const pending of [[], successfulChecks().slice(1), ...['queued', 'in_progress'].map(status => {
+    const checks = successfulChecks();
+    return [...checks, {...checks[0], id: 10, status, conclusion: null}];
+  })]) {
+    for (const trigger of [autoContext(), {repo: context.repo, eventName: 'workflow_dispatch', payload: {}}]) {
+      const fixture = metadataFixture();
+      const result = await policy.autoMergeRelease({github: fixture.github, readGithub: readClient(pending), context: trigger, env});
+      assert.deepEqual(result, {eligible: false, reason: 'checks-pending', number: 7});
+      assert.equal(fixture.mergeCalls.length, 0);
+      const completed = await policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: trigger, env});
+      assert.equal(completed.merged, true);
+      assert.equal(fixture.mergeCalls.length, 1);
+    }
+  }
+});
+
+test('pending checks do not hide failed or invalid required checks', async () => {
+  for (const invalid of [
+    {conclusion: 'failure'}, {id: -1}, {head_sha: BASE}, {app: {slug: 'other'}},
+    {status: 'unknown', conclusion: null}, {status: 'queued', conclusion: 'success'},
+  ]) {
     const fixture = metadataFixture();
     const checks = successfulChecks();
-    checks.push({...checks[0], id: 10, ...state});
-    await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(checks), context: autoContext(), env}), /not a current successful/);
+    checks[0] = {...checks[0], status: 'queued', conclusion: null};
+    checks[1] = {...checks[1], ...invalid};
+    await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(checks), context: autoContext(), env}), /Required check/);
     assert.equal(fixture.mergeCalls.length, 0);
   }
 });

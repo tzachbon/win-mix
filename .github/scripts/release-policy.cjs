@@ -330,13 +330,18 @@ async function currentReleasePullRequest(github, repo) {
 async function validateChecks(github, repo, ref) {
   const checks = await pages(github.rest.checks.listForRef, {...repo, ref, filter: 'latest'}, 'check_runs', 'total_count');
   requireUnique(checks, 'id', 'Check runs');
+  let ready = true;
   for (const name of REQUIRED_CHECKS) {
     const matches = checks.filter(check => check.name === name);
-    invariant(matches.length && matches.every(check => Number.isSafeInteger(check.id) && check.id > 0), `Required check "${name}" is missing or invalid.`);
+    if (!matches.length) { ready = false; continue; }
+    invariant(matches.every(check => Number.isSafeInteger(check.id) && check.id > 0), `Required check "${name}" is invalid.`);
     // Title edits create additional suites on the same head. A newer pending or failed check supersedes an older success.
     const check = matches.reduce((latest, candidate) => candidate.id > latest.id ? candidate : latest);
-    invariant(check.head_sha === ref && check.app?.slug === 'github-actions' && check.status === 'completed' && check.conclusion === 'success', `Required check "${name}" is not a current successful GitHub Actions check.`);
+    invariant(check.head_sha === ref && check.app?.slug === 'github-actions', `Required check "${name}" has the wrong commit or provider.`);
+    if (['queued', 'in_progress'].includes(check.status) && check.conclusion === null) { ready = false; continue; }
+    invariant(check.status === 'completed' && check.conclusion === 'success', `Required check "${name}" is not a current successful GitHub Actions check.`);
   }
+  return ready;
 }
 
 async function automationEnabled(github, repo) {
@@ -369,7 +374,7 @@ async function autoMergeRelease({github, readGithub = github, context, core, env
   const checkedSha = metadata.headSha;
   const mergeCandidateSha = requireSha(metadata.mergeCandidateSha, 'Release merge candidate');
   if (run && (run.head_sha !== checkedSha || run.head_branch !== RELEASE_BRANCH)) return {eligible: false, reason: 'unrelated-release-head'};
-  await validateChecks(readGithub, repo, checkedSha);
+  if (!await validateChecks(readGithub, repo, checkedSha)) return {eligible: false, reason: 'checks-pending', number: pr.number};
   const releases = await pages(github.rest.repos.listReleases, repo, null);
   invariant(!releases.some(release => release?.draft), 'A draft release is already pending.');
 
