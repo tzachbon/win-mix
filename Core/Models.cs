@@ -19,4 +19,10 @@ public static class MixRules
             : d.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToArray();
         return matches.Length == 1 ? matches[0].Id : null;
     }
+    public static string? ResolveBinding(string channel, bool hasBinding, string? savedId, bool reconnectRecognized, DeviceChoice[] devices)
+    {
+        if (!hasBinding) return Discover(channel, devices);
+        if (savedId == null || !reconnectRecognized || devices.Any(d => d.Id == savedId)) return savedId;
+        return Discover(channel, devices) ?? savedId;
+    }
 }

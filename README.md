@@ -12,9 +12,9 @@ Download the per-user installer from the [latest release](https://github.com/tza
 
 Hold **Left Ctrl + Left Alt** to show quick controls at the bottom center of the current monitor. The row is **Main, Game, Chat, Media**. Main controls the headset master output selected in Settings. Hover a channel or use Left/Right to select it; scroll or use Up/Down to change its volume by two percentage points; press M to toggle mute. Release either modifier or press Escape to hide the controls. Release both keys before starting another gesture.
 
-The tray menu opens Mixer, Settings, or exits. Closing Mixer keeps Win Mix in the tray. Settings lets you choose a Windows output for each channel and the headset master, and control the startup option. A missing saved device remains unavailable until that same endpoint returns or you choose another one.
+The tray menu opens Mixer, Settings, or exits. Closing Mixer keeps Win Mix in the tray. Settings lets you choose a Windows output for each channel and the headset master, and control the startup option. If Windows changes the ID of a recognized Sonar or Arctis output, Win Mix reconnects it when exactly one matching output is active. Other missing saved devices remain unavailable until they return or you choose another one. An already-missing device saved by an older version may need one manual selection.
 
-Win Mix controls Windows endpoint levels and active app-session levels. It does not change application routing. It does not integrate with a headset dial, ensure game-specific overlay compatibility, or synchronize Sonar's internal mixer. Levels come from Windows; muting preserves volume, and changing volume preserves mute. Settings store endpoint IDs and the selected quick-control channel, not audio levels.
+Win Mix controls Windows endpoint levels and active app-session levels. It does not change application routing. It does not integrate with a headset dial, ensure game-specific overlay compatibility, or synchronize Sonar's internal mixer. Levels come from Windows; muting preserves volume, and changing volume preserves mute. Settings store endpoint IDs, whether a recognized output may reconnect automatically, and the selected quick-control channel, not audio levels.
 
 This build is unsigned, so Windows may show a reputation warning.
 

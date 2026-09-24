@@ -14,6 +14,8 @@ public sealed class AudioService : IDisposable
     readonly Dictionary<string, AudioSessionControl> sessions = new();
     readonly Dictionary<string, string?> executablePaths = new();
     readonly Dictionary<string, string?> bindings;
+    readonly Dictionary<string, bool> reconnectRecognized;
+    readonly Action<string, string, string>? bindingRecovered;
     MMDeviceEnumerator? enumerator;
     DeviceNotifications? notifications;
     DeviceChoice[] choices = [];
@@ -21,9 +23,12 @@ public sealed class AudioService : IDisposable
     volatile bool stopping;
     public event Action<AudioState>? Changed;
 
-    public AudioService(Dictionary<string, string?> bindings)
+    public AudioService(Dictionary<string, string?> bindings, Dictionary<string, bool>? reconnectRecognized = null,
+        Action<string, string, string>? bindingRecovered = null)
     {
         this.bindings = new(bindings);
+        this.reconnectRecognized = reconnectRecognized is null ? new() : new(reconnectRecognized);
+        this.bindingRecovered = bindingRecovered;
         thread = new Thread(Run) { IsBackground = true, Name = "Mix audio" };
         thread.SetApartmentState(ApartmentState.MTA);
         thread.Start();
@@ -56,7 +61,12 @@ public sealed class AudioService : IDisposable
         if (Interlocked.Exchange(ref refreshPending, 1) != 0) return;
         Post(() => { Interlocked.Exchange(ref refreshPending, 0); Rebuild(); });
     }
-    public void Bind(string channel, string? id) => Post(() => { bindings[channel] = id; Rebuild(); });
+    public void Bind(string channel, string? id) => Post(() =>
+    {
+        bindings[channel] = id;
+        reconnectRecognized[channel] = id != null && MixRules.Discover(channel, choices.Where(d => d.Id == id)) == id;
+        Rebuild();
+    });
     public void SetLevel(string channel, float value) => Post(() =>
     {
         if (Device(channel) is { } device) device.AudioEndpointVolume.MasterVolumeLevelScalar = MixRules.Clamp(value);
@@ -92,7 +102,15 @@ public sealed class AudioService : IDisposable
             using (device) found.Add(new(device.ID, device.FriendlyName));
         choices = found.ToArray();
         foreach (var channel in MixRules.Channels)
-            if (!bindings.ContainsKey(channel)) bindings[channel] = MixRules.Discover(channel, choices);
+        {
+            bool hasBinding = bindings.TryGetValue(channel, out var id);
+            if (id != null && choices.Any(d => d.Id == id) && !reconnectRecognized.ContainsKey(channel))
+                reconnectRecognized[channel] = MixRules.Discover(channel, choices.Where(d => d.Id == id)) == id;
+            var resolved = MixRules.ResolveBinding(channel, hasBinding, id, reconnectRecognized.GetValueOrDefault(channel), choices);
+            if (id != null && resolved != null && resolved != id) bindingRecovered?.Invoke(channel, id, resolved);
+            bindings[channel] = resolved;
+            if (!hasBinding && bindings[channel] != null) reconnectRecognized[channel] = true;
+        }
         foreach (var id in bindings.Values.Where(x => x != null).Distinct())
         {
             if (!choices.Any(x => x.Id == id)) continue;

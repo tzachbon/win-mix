@@ -39,6 +39,20 @@ internal static class Program
             Console.WriteLine($"device id={device.Id} name=\"{device.Name}\"");
         foreach (var level in state.Channels)
             Console.WriteLine($"channel={level.Key} available={level.Available} id={level.DeviceId ?? "-"} volume={level.Volume:F3} muted={level.Muted}");
+        if (FindLevel(state, "Master") is { Available: true, DeviceId: not null } master)
+        {
+            string? recoveredId = null;
+            using var recovering = new AudioService(
+                new() { ["Master"] = "AUDIOPROBE_STALE_" + Guid.NewGuid().ToString("N") },
+                new() { ["Master"] = true },
+                (channel, _, newId) => { if (channel == "Master") recoveredId = newId; });
+            var recovered = await NextStateAsync(recovering, _ => true, recovering.Refresh, "read-only Master recovery");
+            var level = FindLevel(recovered, "Master");
+            Require(level is { Available: true } && level.DeviceId == master.DeviceId && recoveredId == master.DeviceId,
+                "Recognized stale Master binding did not reconnect and report recovery.");
+            Console.WriteLine("recovery=PASS channel=Master");
+        }
+        else Console.WriteLine("recovery=SKIP no active Master endpoint");
         Console.WriteLine("PASS snapshot");
         return 0;
     }

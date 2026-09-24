@@ -37,7 +37,10 @@ public partial class App : Application
         updates = new UpdateController();
         updates.Changed += value => Queue(() => mixer?.SetUpdateState(value));
         updates.Cleanup();
-        audio = new AudioService(preferences.Bindings);
+        audio = new AudioService(preferences.Bindings, preferences.ReconnectRecognized, (key, oldId, newId) => Queue(() =>
+        {
+            if (preferences.RecoverBinding(key, oldId, newId)) Save();
+        }));
         audio.Changed += value => Queue(() => Update(value));
         host = new DesktopHost();
         host.Command += command => Queue(() => Handle(command));
@@ -55,11 +58,7 @@ public partial class App : Application
     void Update(AudioState value)
     {
         state = value;
-        bool discovered = false;
-        foreach (var level in value.Channels)
-            if (!preferences.Bindings.ContainsKey(level.Key) && level.DeviceId != null)
-            { preferences.Bindings[level.Key] = level.DeviceId; discovered = true; }
-        if (discovered) Save();
+        if (preferences.Sync(value)) Save();
         mixer?.Update(value);
         overlay?.Update(value, preferences.Selected);
     }
@@ -79,7 +78,7 @@ public partial class App : Application
             mixer.MuteRequested += key => audio!.ToggleMute(key);
             mixer.SessionLevelChanged += (key, value) => audio!.SetSession(key, volume: value);
             mixer.SessionMuteChanged += (key, value) => audio!.SetSession(key, mute: value);
-            mixer.DeviceChanged += (key, id) => { preferences.Bindings[key] = id; Save(); audio!.Bind(key, id); };
+            mixer.DeviceChanged += (key, id) => { preferences.SetBinding(key, id, state.Devices); Save(); audio!.Bind(key, id); };
             mixer.StartupChanged += enabled =>
             {
                 try { Preferences.SetStartup(enabled); }
