@@ -47,6 +47,7 @@ function fakeGitHub(options = {}) {
   const calls = {uploads: [], updates: []};
   const outputs = {};
   const notices = [];
+  const warnings = [];
   const pr = {
     number: 42,
     changed_files: 3,
@@ -117,8 +118,8 @@ function fakeGitHub(options = {}) {
     },
   };
   return {
-    github, context: {repo}, core: {setOutput: (key, value) => outputs[key] = value, info() {}, notice: value => notices.push(value)},
-    env: policyEnv, draft, assets, calls, outputs, notices, sha,
+    github, context: {repo}, core: {setOutput: (key, value) => outputs[key] = value, info() {}, notice: value => notices.push(value), warning: value => warnings.push(value)},
+    env: policyEnv, draft, assets, calls, outputs, notices, warnings, sha,
     expected: {id: draft.id, tag: draft.tag_name, sha},
   };
 }
@@ -144,10 +145,14 @@ test('a false or missing repository flag pauses automation', async () => {
 test('release gate reports unpublished versions while paused and permits guarded recovery', async () => {
   const published = {tag_name: 'v1.0.3', draft: false, prerelease: false};
   const paused = fakeGitHub({variable: 'false', releases: [published]});
-  await assert.rejects(releaseGate(paused), /Release 1.0.4 was merged but has no published release/);
+  await releaseGate(paused);
+  assert.match(paused.warnings[0], /Release 1.0.4 was merged but has no published release/);
   assert.deepEqual(paused.outputs, {});
   assert.equal(paused.calls.updates.length, 0);
-  await assert.rejects(releaseGate(fakeGitHub({missingVariable: true, releases: [published]})), /Release 1.0.4 was merged but has no published release/);
+  const missing = fakeGitHub({missingVariable: true, releases: [published]});
+  await releaseGate(missing);
+  assert.equal(missing.warnings.length, 1);
+  assert.deepEqual(missing.outputs, {});
 
   const current = fakeGitHub({variable: 'false', releases: [published], currentRelease: {tag_name: 'v1.0.4', draft: false}});
   await releaseGate(current);
