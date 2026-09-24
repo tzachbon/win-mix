@@ -37,7 +37,7 @@ Protect `main` with required PRs and the checks `PR title`, `Windows build`, and
 
 The required `Release metadata` check fails for version PRs when it runs while automation is paused. A later switch change does not refresh that check: after enabling, rerun the failed **PR policy** job and wait for its success before running **Release automation**. When pausing, rerun **PR policy** for each open version PR so a stale green check becomes a failure; do not manually merge one before that rerun finishes. The live automatic merge checks the switch again.
 
-If a version PR was already merged without a published tag and release, Release Please cannot prepare the next PR; `Release automation` now fails with that version instead of reporting success. Publish the pending version through the guarded release workflow after the separate activation decision, then rerun PR preparation. Automatic merging also requires the current `VERSION` to match the latest published release.
+If a version PR was already merged without a published tag and release, Release Please cannot prepare the next PR; paused `Release automation` reports a warning with that version. Publish the pending version through the guarded release workflow after the separate activation decision, then rerun PR preparation. Automatic merging also requires the current `VERSION` to match the latest published release.
 
 After a separate activation decision, enable the variable and manually run **Release automation** on `main`. **Release PR decision** rechecks current identity, files, version, merge candidate and successful checks before merging a patch or minor. Major versions always require a manual merge.
 

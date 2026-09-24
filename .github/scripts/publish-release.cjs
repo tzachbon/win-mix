@@ -65,7 +65,10 @@ async function releaseGate({github, context, core, env = process.env}) {
     }
   } catch (error) { if (error.status !== 404) throw error; }
   await policy.assertReleaseCommit({github, context, env, sha: commits[0].sha, version: currentVersion});
-  if (!active) throw Error(`Release ${currentVersion} was merged but has no published release. Publish v${currentVersion} before another release PR can be prepared.`);
+  if (!active) {
+    core.warning(`Release ${currentVersion} was merged but has no published release. Publish v${currentVersion} before another release PR can be prepared.`);
+    return;
+  }
   core.setOutput('create', String(await enabled(github, context.repo)));
 }
 function localAssets(directory, tag) {
