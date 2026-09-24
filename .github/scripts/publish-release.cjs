@@ -49,6 +49,25 @@ async function draftState({ github, context, core, env = process.env }) {
   if (core) for (const [key, value] of Object.entries(state)) core.setOutput(key, String(value));
   return state;
 }
+async function releaseGate({github, context, core, env = process.env}) {
+  const active = await enabled(github, context.repo);
+  if (active && await draftState({github, context, env})) return;
+  const commits = (await github.rest.repos.listCommits({...context.repo, sha: 'main', path: 'VERSION', per_page: 1})).data;
+  if (commits.length !== 1) throw Error('Cannot resolve version commit.');
+  const file = (await github.rest.repos.getContent({...context.repo, path: 'VERSION', ref: commits[0].sha})).data;
+  const currentVersion = Buffer.from(file.content, 'base64').toString('utf8').trim();
+  try {
+    const release = (await github.rest.repos.getReleaseByTag({...context.repo, tag: `v${currentVersion}`})).data;
+    if (!release.draft) {
+      if (active) core.info('Current version is already published.');
+      else core.notice('Paused: PR preparation only. No merge, tag, draft or publication.');
+      return;
+    }
+  } catch (error) { if (error.status !== 404) throw error; }
+  await policy.assertReleaseCommit({github, context, env, sha: commits[0].sha, version: currentVersion});
+  if (!active) throw Error(`Release ${currentVersion} was merged but has no published release. Publish v${currentVersion} before another release PR can be prepared.`);
+  core.setOutput('create', String(await enabled(github, context.repo)));
+}
 function localAssets(directory, tag) {
   version(tag);
   const exe = `win-mix-Setup-${tag.slice(1)}-x64.exe`;
@@ -99,4 +118,4 @@ async function publish({ github, context, core, directory, expected, env = proce
   await github.rest.repos.updateRelease({ ...repo, release_id: state.id, draft: false, prerelease: false, make_latest: 'true' });
   core?.info(`Published ${state.tag} from ${state.sha} with verified installer assets.`);
 }
-module.exports = { enabled, tagSha, draftState, localAssets, verifyAsset, publish };
+module.exports = { enabled, tagSha, draftState, releaseGate, localAssets, verifyAsset, publish };

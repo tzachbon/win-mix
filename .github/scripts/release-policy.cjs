@@ -211,6 +211,12 @@ async function validateReleaseMetadata({github, context, env = process.env, pull
   };
 }
 
+async function validateReleaseMetadataCheck(args) {
+  const metadata = await validateReleaseMetadata(args);
+  invariant(metadata.kind !== 'release' || (args.env || process.env).RELEASE_AUTOMATION_ENABLED === 'true', 'Release automation is paused; release pull requests cannot merge.');
+  return metadata;
+}
+
 async function associatedPullRequests(github, repo, sha) {
   const pulls = await pages(github.rest.repos.listPullRequestsAssociatedWithCommit, {...repo, commit_sha: sha}, null);
   requireUnique(pulls, 'number', 'Associated pull requests');
@@ -372,6 +378,9 @@ async function autoMergeRelease({github, readGithub = github, context, core, env
   invariant(current.mergeable === true, 'Release pull request is not currently mergeable.');
   const mainSha = requireSha((await github.rest.repos.getBranch({...repo, branch: MAIN_BRANCH}))?.data?.commit?.sha, 'Current main head');
   invariant(current.base.sha === mainSha, 'Release pull request base is behind current main.');
+  const mainVersion = parseStableVersion(await getTextFile(github, repo, 'VERSION', mainSha)).text;
+  const published = await latestStableRelease(github, repo);
+  invariant(published.tag_name === `v${mainVersion}`, `Main current version ${mainVersion} is not published; finish its release before merging another version.`);
   const ancestry = await compare(github, repo, mainSha, metadata.headSha, false);
   invariant(['ahead', 'identical'].includes(ancestry.status), 'Release branch must contain current main before using its checks.');
   if (!await automationEnabled(github, repo)) {
@@ -389,6 +398,6 @@ async function autoMergeRelease({github, readGithub = github, context, core, env
 module.exports = {
   METADATA_FILES, REQUIRED_CHECKS, RELEASE_BRANCH,
   parsePullRequestTitle, parseStableVersion, compareVersions,
-  validatePullRequestTitle, validateReleaseMetadata, validateMainPreflight,
+  validatePullRequestTitle, validateReleaseMetadata, validateReleaseMetadataCheck, validateMainPreflight,
   assertReleaseCommit, autoMergeRelease,
 };
