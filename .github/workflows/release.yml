@@ -73,22 +73,7 @@ jobs:
         with:
           github-token: ${{ steps.app.outputs.token }}
           script: |
-            const publisher = require('./.github/scripts/publish-release.cjs');
-            if (!await publisher.enabled(github, context.repo)) {
-              core.notice('Paused: PR preparation only. No merge, tag, draft or publication.');
-              return;
-            }
-            if (await publisher.draftState({github, context})) return;
-            const commits = (await github.rest.repos.listCommits({...context.repo, sha:'main', path:'VERSION', per_page:1})).data;
-            if (commits.length !== 1) throw Error('Cannot resolve version commit.');
-            const file = (await github.rest.repos.getContent({...context.repo, path:'VERSION', ref:commits[0].sha})).data;
-            const version = Buffer.from(file.content, 'base64').toString('utf8').trim();
-            try {
-              const existing = (await github.rest.repos.getReleaseByTag({...context.repo, tag:`v${version}`})).data;
-              if (!existing.draft) { core.info('Current version is already published.'); return; }
-            } catch (error) { if (error.status !== 404) throw error; }
-            await require('./.github/scripts/release-policy.cjs').assertReleaseCommit({github, context, sha:commits[0].sha, version});
-            core.setOutput('create', String(await publisher.enabled(github, context.repo)));
+            await require('./.github/scripts/publish-release.cjs').releaseGate({github, context, core});
       - name: Create draft only
         if: steps.gate.outputs.create == 'true'
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4

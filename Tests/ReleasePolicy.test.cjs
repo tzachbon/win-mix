@@ -68,7 +68,7 @@ function metadataFixture(options = {}) {
         if (ref === BASE && path === 'Directory.Build.props') return encoded(`<Project><PropertyGroup><Version>${options.oldVersion || '1.2.3'}</Version></PropertyGroup></Project>`);
         throw new Error(`Unexpected content read: ${ref}:${path}`);
       }),
-      listReleases: async () => ({data: options.releases || []}),
+      listReleases: async () => ({data: options.releases || [{tag_name: 'v1.2.3', draft: false, prerelease: false, published_at: '2026-09-20T00:00:00Z'}]}),
       getBranch: async () => ({data: {commit: {sha: options.mainSha || BASE}}}),
       compareCommitsWithBasehead: async () => ({data: {status: options.ancestry || 'ahead'}}),
     },
@@ -150,6 +150,22 @@ test('regular pull requests pass unless they edit protected release metadata', a
 
   const mixed = metadataFixture({files: releaseFiles([{filename: 'README.md', status: 'modified'}])});
   await assert.rejects(policy.validateReleaseMetadata({github: mixed.github, context, env}), /exactly VERSION/);
+});
+
+test('required metadata check blocks paused release PRs without blocking regular PRs', async () => {
+  const release = metadataFixture();
+  for (const value of [undefined, 'false']) {
+    await assert.rejects(policy.validateReleaseMetadataCheck({
+      github: release.github, context, env: {...env, RELEASE_AUTOMATION_ENABLED: value},
+    }), /paused/);
+  }
+  assert.equal((await policy.validateReleaseMetadataCheck({
+    github: release.github, context, env: {...env, RELEASE_AUTOMATION_ENABLED: 'true'},
+  })).kind, 'release');
+  const regular = metadataFixture({files: [{filename: 'README.md', status: 'modified'}]});
+  assert.equal((await policy.validateReleaseMetadataCheck({github: regular.github, context, env})).kind, 'regular');
+  const decision = await policy.autoMergeRelease({github: release.github, readGithub: readClient(), context: autoContext(), env});
+  assert.equal(decision.merged, true);
 });
 
 test('release metadata rejects a fake bot and non-regular files', async () => {
@@ -334,6 +350,12 @@ test('paused automation rejects a release pull request based behind current main
     getRepoVariable: async () => { throw Object.assign(new Error('missing'), {status: 404}); },
   });
   await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /base is behind/);
+  assert.equal(fixture.mergeCalls.length, 0);
+});
+
+test('an unpublished current version blocks merging a later release PR', async () => {
+  const fixture = metadataFixture({releases: [{tag_name: 'v1.2.2', draft: false, prerelease: false, published_at: '2026-09-20T00:00:00Z'}]});
+  await assert.rejects(policy.autoMergeRelease({github: fixture.github, readGithub: readClient(), context: autoContext(), env}), /current version.*published/);
   assert.equal(fixture.mergeCalls.length, 0);
 });
 
