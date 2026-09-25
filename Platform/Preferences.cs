@@ -8,6 +8,7 @@ namespace Mix.Platform;
 sealed class Preferences
 {
     public Dictionary<string,string?> Bindings { get; set; } = new();
+    public Dictionary<string,bool> ReconnectRecognized { get; set; } = new();
     public int Selected { get; set; } = 2;
     public bool HasUsedShortcut { get; set; }
     public KeyboardBindings Keyboard { get; set; } = KeyboardBindings.Default;
@@ -35,12 +36,41 @@ sealed class Preferences
                 {
                     p.Keyboard = KeyboardBindings.Default;
                 }
+                p.ReconnectRecognized ??= new();
                 p.Selected = Math.Clamp(p.Selected, 0, 3);
                 return p;
             }
         }
         catch { }
         return new();
+    }
+    public void SetBinding(string channel, string? id, DeviceChoice[] devices)
+    {
+        Bindings[channel] = id;
+        ReconnectRecognized[channel] = id != null && MixRules.Discover(channel, devices) == id;
+    }
+    public bool RecoverBinding(string channel, string oldId, string newId)
+    {
+        if (!ReconnectRecognized.GetValueOrDefault(channel) || !Bindings.TryGetValue(channel, out var saved) || saved != oldId)
+            return false;
+        Bindings[channel] = newId;
+        return true;
+    }
+    public bool Sync(AudioState state)
+    {
+        bool changed = false;
+        foreach (var level in state.Channels)
+        {
+            if (level.DeviceId == null) continue;
+            if (!Bindings.ContainsKey(level.Key))
+            { Bindings[level.Key] = level.DeviceId; changed = true; }
+            if (!ReconnectRecognized.ContainsKey(level.Key) && Bindings[level.Key] == level.DeviceId && state.Devices.Any(d => d.Id == level.DeviceId))
+            {
+                ReconnectRecognized[level.Key] = MixRules.Discover(level.Key, state.Devices) == level.DeviceId;
+                changed = true;
+            }
+        }
+        return changed;
     }
     public void Save(string? path = null)
     {
@@ -77,7 +107,7 @@ sealed class Preferences
         catch (Exception error)
         {
             return $"Saved, but could not activate keyboard bindings: {error.Message}";
-        }
+    }
     }
     const string RunKey="Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     const string ApprovalKey="Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";

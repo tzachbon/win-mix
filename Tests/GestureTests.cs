@@ -415,6 +415,58 @@ internal static class GestureTests
         Is<string?>(null, MixRules.Discover("Chat", devices), "missing Sonar match");
         Is("master", MixRules.Discover("Master", devices), "Master uses the exact headphone match");
         Is<string?>(null, MixRules.Discover("Game", [devices[0], new("second", "SteelSeries Sonar - Gaming (USB headset)")]), "ambiguous Sonar match");
+        Is("master", MixRules.ResolveBinding("Master", true, "stale", true, devices), "recognized stale binding reconnects to the unique headset");
+        Is("master", MixRules.ResolveBinding("Master", false, null, false, devices), "new binding discovers the headset");
+        Is("master", MixRules.ResolveBinding("Master", true, "master", true, devices), "active binding stays selected");
+        Is<string?>(null, MixRules.ResolveBinding("Master", true, null, true, devices), "Not assigned stays unassigned");
+        Is("stale", MixRules.ResolveBinding("Master", true, "stale", false, devices), "manual stale binding stays selected");
+        Is("stale", MixRules.ResolveBinding("Master", true, "stale", true, [devices[2]]), "missing replacement stays unavailable");
+        Is("stale", MixRules.ResolveBinding("Master", true, "stale", true, [devices[1], new("second", "Headphones (2- Arctis Nova Pro Wireless)")]), "ambiguous replacement stays unavailable");
+        Is("game", MixRules.ResolveBinding("Game", true, "stale", true, [devices[0]]), "Sonar channel reconnects too");
+        var preferences = new Mix.Platform.Preferences();
+        preferences.SetBinding("Master", "master", devices);
+        Is(true, preferences.ReconnectRecognized["Master"], "recognized selection enables reconnect");
+        DeviceChoice[] ambiguousMasters =
+        [
+            devices[1],
+            new("second-master", "Headphones (Arctis Nova Pro Wireless)")
+        ];
+        preferences.SetBinding("Master", "master", ambiguousMasters);
+        Is(false, preferences.ReconnectRecognized["Master"], "ambiguous selection does not enable reconnect");
+        Is("master", MixRules.ResolveBinding("Master", true, "master", preferences.ReconnectRecognized["Master"], [ambiguousMasters[1]]),
+            "ambiguous selection stays selected after disconnect");
+        preferences.SetBinding("Master", "master", devices);
+        preferences.SetBinding("Game", "other", devices);
+        Is(false, preferences.ReconnectRecognized["Game"], "custom selection does not reconnect");
+        preferences.SetBinding("Chat", null, devices);
+        Is(false, preferences.ReconnectRecognized["Chat"], "Not assigned does not reconnect");
+        preferences.Bindings["Master"] = "stale";
+        AudioState recovered = new(devices, [new Level("Master", "Master", "master", 1, false, true)], [], null);
+        Is(false, preferences.Sync(recovered), "audio snapshot cannot overwrite a saved choice");
+        Is(true, preferences.RecoverBinding("Master", "stale", "master"), "confirmed recovery updates saved binding");
+        Is("master", preferences.Bindings["Master"], "new endpoint ID is saved");
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mix-settings-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            preferences.Save(tempPath);
+            var stored = System.Text.Json.JsonSerializer.Deserialize<Mix.Platform.Preferences>(System.IO.File.ReadAllText(tempPath))!;
+            Is("master", stored.Bindings["Master"], "recovered ID survives settings save");
+            Is(true, stored.ReconnectRecognized["Master"], "reconnect eligibility survives settings save");
+        }
+        finally { System.IO.File.Delete(tempPath); System.IO.File.Delete(tempPath + ".tmp"); }
+        Is(false, preferences.Sync(recovered), "unchanged state is not saved again");
+        preferences.SetBinding("Master", "other", devices);
+        Is(false, preferences.RecoverBinding("Master", "stale", "master"), "delayed recovery cannot overwrite a manual choice");
+        Is("other", preferences.Bindings["Master"], "manual choice remains selected");
+        preferences.SetBinding("Master", "master", devices);
+        Is(false, preferences.RecoverBinding("Master", "stale", "second"), "delayed recovery cannot overwrite a newer recognized choice");
+        var legacy = System.Text.Json.JsonSerializer.Deserialize<Mix.Platform.Preferences>("{\"Bindings\":{\"Master\":\"master\"}}")!;
+        Is(true, legacy.Sync(recovered), "active legacy binding gains reconnect eligibility");
+        Is(true, legacy.ReconnectRecognized["Master"], "legacy headset is recognized");
+        var ambiguousLegacy = System.Text.Json.JsonSerializer.Deserialize<Mix.Platform.Preferences>("{\"Bindings\":{\"Master\":\"master\"}}")!;
+        Is(true, ambiguousLegacy.Sync(new AudioState(ambiguousMasters, [new Level("Master", "Master", "master", 1, false, true)], [], null)),
+            "legacy binding classification runs against all active devices");
+        Is(false, ambiguousLegacy.ReconnectRecognized["Master"], "ambiguous legacy binding does not enable reconnect");
         Is(0f, MixRules.Clamp(0), "clamp accepts zero");
         Is(1f, MixRules.Clamp(1), "clamp accepts one");
         Is(0f, MixRules.Clamp(-1), "clamp floors at zero");
