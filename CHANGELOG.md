@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/tzachbon/win-mix/compare/v1.2.0...v1.2.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **audio:** reconnect recognized outputs after ID changes ([#16](https://github.com/tzachbon/win-mix/issues/16)) ([da68ede](https://github.com/tzachbon/win-mix/commit/da68edee050d552b2e5888c9987137321b2dc1d6))
+
 ## [1.2.0](https://github.com/tzachbon/win-mix/compare/v1.1.0...v1.2.0) (2026-09-24)
 
 
