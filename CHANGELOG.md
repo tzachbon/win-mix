@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/tzachbon/win-mix/compare/v1.2.1...v1.2.2) (2026-10-06)
+
+
+### Bug Fixes
+
+* stabilize quick-controls overlay initialization ([#23](https://github.com/tzachbon/win-mix/issues/23)) ([e68a15f](https://github.com/tzachbon/win-mix/commit/e68a15fdde0be93247d5b5e85080898e4f0d7c3f))
+
 ## [1.2.1](https://github.com/tzachbon/win-mix/compare/v1.2.0...v1.2.1) (2026-09-25)
 
 
