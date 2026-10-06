@@ -51,6 +51,17 @@ The explicit exercise mode changes live endpoint and app-session levels temporar
 dotnet run --project Tests/AudioProbe/AudioProbe.csproj -- --exercise
 ```
 
+The native overlay regression probe needs an interactive Windows desktop. It briefly shows the real quick-controls window, checks first-show bounds, repeated show/hide, styles and focus, then exits. It does not start the tray host, input hooks, or audio service, or save preferences. Keep the foreground window unchanged during its run:
+
+```powershell
+dotnet publish Mix.csproj -c Release -o Tests/OverlayProbe/bin/publish -p:RestoreLockedMode=true -p:OverlayProbe=true
+$probe = Start-Process -FilePath ./Tests/OverlayProbe/bin/publish/win-mix.exe -Wait -PassThru
+if ($probe.ExitCode -ne 0) { throw 'Overlay probe failed. See Tests/OverlayProbe/bin/publish/probe-result.txt.' }
+Get-Content ./Tests/OverlayProbe/bin/publish/probe-result.txt
+```
+
+This probe is a separate test executable. Do not install it. A normal publish omits the probe entry point. For native heap diagnostics, launch it under WinDbg with the default debug heap enabled. The probe does not prove physical shortcut input, tray behavior, or login startup. Verify those on the installed app, including 15 minutes with the same process after a real Windows login.
+
 ## Source map
 
 - `Core/` contains gesture handling and channel-selection rules, suitable for deterministic tests.
