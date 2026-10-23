@@ -412,3 +412,13 @@ a:focus-visible {
     font-size: 2.35rem;
   }
 }
+
+.policy {
+  margin: 32px 0 0;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.policy a {
+  color: var(--muted);
+}
