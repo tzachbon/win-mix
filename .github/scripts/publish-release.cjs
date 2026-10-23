@@ -3,6 +3,8 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const policy = require('./release-policy.cjs');
 
+// ponytail: says unsigned until SignPath signing starts, then update this line.
+const POLICY = 'Code signing policy: https://github.com/tzachbon/win-mix#code-signing-policy. Signing is pending, this installer is unsigned.';
 function version(tag) {
   if (typeof tag !== 'string' || !/^v\d+\.\d+\.\d+$/.test(tag)) throw Error('Invalid release tag.');
   return policy.parseStableVersion(tag.slice(1));
@@ -118,7 +120,11 @@ async function publish({ github, context, core, directory, expected, env = proce
   const current = await draftState({ github, context, env });
   if (!current || current.id !== state.id || current.sha !== state.sha) throw Error('Draft changed before publication.');
   if (!await enabled(github, repo)) throw Error('Release automation is paused.');
-  await github.rest.repos.updateRelease({ ...repo, release_id: state.id, draft: false, prerelease: false, make_latest: 'true' });
+  const latest = (await github.rest.repos.getRelease({ ...repo, release_id: state.id })).data;  // notes edited during upload
+  if (!latest.draft) throw Error('Published assets are immutable.');
+  const body = latest.body || '';
+  await github.rest.repos.updateRelease({ ...repo, release_id: state.id, draft: false, prerelease: false, make_latest: 'true',
+    body: body.includes(POLICY) ? body : body ? `${body}\n\n${POLICY}` : POLICY });
   core?.info(`Published ${state.tag} from ${state.sha} with verified installer assets.`);
 }
 module.exports = { enabled, tagSha, draftState, releaseGate, localAssets, verifyAsset, publish };

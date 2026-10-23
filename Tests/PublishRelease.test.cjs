@@ -180,6 +180,43 @@ test('publish resumes a partial upload without replacing verified bytes', async 
   assert.deepEqual(fake.calls.uploads.map(call => call.name), [`${set.exe}.sha256`]);
   assert.equal(fake.calls.updates.length, 1);
   assert.equal(fake.calls.updates[0].draft, false);
+  assert.match(fake.calls.updates[0].body, /^Code signing policy: https:\/\/github\.com\/tzachbon\/win-mix#code-signing-policy\./);
+});
+
+test('publish keeps the release notes and adds the code signing policy once', async t => {
+  const notes = '## Bug Fixes\n\nCode signing policy: https://github.com/tzachbon/win-mix#code-signing-policy. Signing is pending, this installer is unsigned.';
+  for (const body of ['## Bug Fixes', notes]) {
+    const set = artifacts(t);
+    const fake = fakeGitHub();
+    fake.draft.body = body;
+    await publish({...fake, directory: set.directory});
+    assert.equal(fake.calls.updates[0].body, notes);
+  }
+  const set = artifacts(t);
+  const fake = fakeGitHub();
+  fake.draft.body = '    indented code';  // Markdown that leading spaces change
+  await publish({...fake, directory: set.directory});
+  assert.match(fake.calls.updates[0].body, /^    indented code\n\nCode signing policy: /);
+});
+
+test('publish keeps release notes edited while the installer uploads', async t => {
+  const set = artifacts(t);
+  const fake = fakeGitHub();
+  fake.draft.body = '## Bug Fixes';
+  fake.github.rest.repos.getRelease = async () => ({data: {...fake.draft}});  // each read is a snapshot, like the API
+  const upload = fake.github.rest.repos.uploadReleaseAsset;
+  fake.github.rest.repos.uploadReleaseAsset = async args => { fake.draft.body = '## Edited'; return upload(args); };
+  await publish({...fake, directory: set.directory});
+  assert.match(fake.calls.updates[0].body, /^## Edited\n\nCode signing policy: /);
+});
+
+test('publish never rewrites notes of a release published during the upload', async t => {
+  const set = artifacts(t);
+  const fake = fakeGitHub();
+  const reads = [{...fake.draft}, {...fake.draft, draft: false}];
+  fake.github.rest.repos.getRelease = async () => ({data: reads.shift()});
+  await assert.rejects(publish({...fake, directory: set.directory}), /Published assets are immutable/);
+  assert.equal(fake.calls.updates.length, 0);
 });
 
 test('publish rejects conflicting existing assets', async t => {

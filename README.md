@@ -32,6 +32,20 @@ In Settings, **Check for updates** checks the latest stable GitHub release only 
 
 Updates use GitHub HTTPS release metadata, SHA-256, size and file-version checks. Installers remain unsigned. There are no automatic checks or background downloads. Failed downloads never launch; if the installer itself fails after closing Win Mix, use its error message and reopen the app or rerun the installer.
 
+## Code signing policy
+
+Windows code signing is **pending**. The project is applying for free code signing from SignPath Foundation, and current installers are still unsigned. When signing starts, Windows releases will say:
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+
+- Authors and committers: [tzachbon](https://github.com/tzachbon)
+- Reviewers: [tzachbon](https://github.com/tzachbon)
+- Approvers: [tzachbon](https://github.com/tzachbon)
+
+Only Win Mix's own executables and its installer will be signed, from GitHub Actions builds of this repository, and every release needs a manual approval.
+
+See the [privacy policy](PRIVACY.md) for what Win Mix and the bundled Windows App SDK send over the network.
+
 ## Support
 
 Use the [GitHub issue templates](https://github.com/tzachbon/win-mix/issues/new/choose) for ordinary bug reports and feature requests. Do not post credentials, device IDs, personal paths, or unredacted diagnostics. Report suspected vulnerabilities privately using the instructions in [SECURITY.md](SECURITY.md).
