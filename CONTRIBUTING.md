@@ -62,6 +62,21 @@ Get-Content ./Tests/OverlayProbe/bin/publish/probe-result.txt
 
 This probe is a separate test executable. Do not install it. A normal publish omits the probe entry point. For native heap diagnostics, launch it under WinDbg with the default debug heap enabled. The probe does not prove physical shortcut input, tray behavior, or login startup. Verify those on the installed app, including 15 minutes with the same process after a real Windows login.
 
+## App routing checks
+
+`dotnet run --project Tests/AudioProbe/AudioProbe.csproj -c Release -- --routing` is opt-in. It starts only its own silent Default-output AudioGraph player, moves its live sessions through Game, Chat, and Media, checks a new-PID restart and an offline saved assignment, and verifies its original per-role preferences are restored before shutdown. A separate owned executable observes global defaults so per-app defaults cannot be mistaken for global changes. This requires the three configured channels on the interactive Windows machine. It never routes an existing user app.
+
+To verify the real Settings controls without tray hooks, startup changes, or audio writes:
+
+```powershell
+dotnet publish Mix.csproj -c Release -o Tests/AppRoutingProbe/bin/publish -p:RestoreLockedMode=true -p:AppRoutingProbe=true
+$probe = Start-Process -FilePath ./Tests/AppRoutingProbe/bin/publish/win-mix.exe -Wait -PassThru
+if ($probe.ExitCode -ne 0) { throw 'Settings routing probe failed.' }
+Get-Content ./Tests/AppRoutingProbe/bin/publish/routing-ui-result.txt
+```
+
+This uses isolated UI fixtures to check active/inactive selectors, collapsed inactive apps, adding an executable without choosing a channel, observed output, and stable controls. It does not automate the system file-picker dialog or prove routing on every supported Windows build. Do not install the probe executable. A normal publish excludes it.
+
 ## Source map
 
 - `Core/` contains gesture handling and channel-selection rules, suitable for deterministic tests.
@@ -85,7 +100,7 @@ History includes past detections, and `ActionSuccess` describes the recorded act
 
 Win Mix stores per-user data under `%LOCALAPPDATA%\Mix.Native`:
 
-- `settings.json` contains saved Windows endpoint IDs, the selected quick-control channel, and whether the shortcut tutorial was dismissed. It does not contain audio levels.
+- `settings.json` contains saved Windows endpoint IDs, app executable/channel assignments, the selected quick-control channel, and whether the shortcut tutorial was dismissed. It does not contain audio levels. Redact executable paths as well as device IDs before sharing it.
 - `last-error.txt` is written for an unhandled application exception and contains exception details.
 
 Before sharing either file or captured probe output, redact device IDs, personal Windows paths, and any other identifying information. The probe can print endpoint details even in its read-only mode. Omit diagnostics you cannot safely sanitize.

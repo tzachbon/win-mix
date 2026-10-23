@@ -42,7 +42,7 @@ public partial class App : Application
         audio = new AudioService(preferences.Bindings, preferences.ReconnectRecognized, (key, oldId, newId) => Queue(() =>
         {
             if (preferences.RecoverBinding(key, oldId, newId)) Save();
-        }));
+        }), preferences.AppChannels);
         audio.Changed += value => Queue(() => Update(value));
         host = new DesktopHost(activeKeyboard);
         host.Command += command => Queue(() => Handle(command));
@@ -81,6 +81,13 @@ public partial class App : Application
             mixer.MuteRequested += key => audio!.ToggleMute(key);
             mixer.SessionLevelChanged += (key, value) => audio!.SetSession(key, volume: value);
             mixer.SessionMuteChanged += (key, value) => audio!.SetSession(key, mute: value);
+            mixer.AppChannelChanged += (path, channel) =>
+            {
+                var error = preferences.SetAppChannel(path, channel);
+                mixer.SetError(error ?? "");
+                mixer.SetAppChannels(preferences.AppChannels);
+                if (error == null) audio!.ConfigureAppChannels(preferences.AppChannels, path);
+            };
             mixer.DeviceChanged += (key, id) => { preferences.SetBinding(key, id, state.Devices); Save(); audio!.Bind(key, id); };
             mixer.StartupChanged += enabled =>
             {
@@ -89,6 +96,7 @@ public partial class App : Application
                 mixer.SetStartupEnabled(Preferences.StartupEnabled);
             };
         }
+        mixer.SetAppChannels(preferences.AppChannels);
         mixer.Update(state);
         mixer.SetShortcutUsed(preferences.HasUsedShortcut);
         mixer.SetStartupEnabled(Preferences.StartupEnabled);

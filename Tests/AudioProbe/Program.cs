@@ -13,9 +13,12 @@ internal static class Program
     [MTAThread]
     static async Task<int> Main(string[] args)
     {
+        if (args.SequenceEqual(new[] { "--route-player" })) return RoutingProbe.Play();
+        if (args.SequenceEqual(new[] { "--routing-observer" })) { Console.WriteLine(RoutingProbe.Defaults()); return 0; }
+        if (args.SequenceEqual(new[] { "--routing" })) return RoutingProbe.Run();
         if (args.Length > 1 || (args.Length == 1 && args[0] != "--exercise"))
         {
-            Console.Error.WriteLine("Usage: AudioProbe [--exercise]");
+            Console.Error.WriteLine("Usage: AudioProbe [--exercise|--routing]");
             return 2;
         }
 

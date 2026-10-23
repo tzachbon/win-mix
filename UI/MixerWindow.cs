@@ -24,6 +24,8 @@ public sealed class MixerWindow : Window
     readonly Grid settingsView = new();
     readonly StackPanel sessionPanel = new() { Spacing = 12 };
     readonly KeyboardSettingsView keyboardSettings = new();
+    readonly AppRoutingView appRouting = new();
+    IReadOnlyDictionary<string,string> appChannels = new Dictionary<string,string>();
     readonly TextBlock errorText = new() { TextWrapping = TextWrapping.Wrap, MaxLines = 3 };
     readonly Button settingsButton = new();
     UpdatePanel updatePanel = null!;
@@ -48,6 +50,7 @@ public sealed class MixerWindow : Window
     public event Action<string, float>? SessionLevelChanged;
     public event Action<string, bool>? SessionMuteChanged;
     public event Action<string, string?>? DeviceChanged;
+    public event Action<string, string>? AppChannelChanged;
     public event Action<bool>? StartupChanged;
     public event Action? UpdateRequested;
     public event Action? UpdateCanceled;
@@ -58,6 +61,17 @@ public sealed class MixerWindow : Window
         Content = BuildUi();
         hwnd = WindowNative.GetWindowHandle(this);
         appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(hwnd));
+        appRouting.ChannelChanged += (path, channel) => AppChannelChanged?.Invoke(path, channel);
+        appRouting.AddRequested += async () =>
+        {
+            try
+            {
+                var picker = new Microsoft.Windows.Storage.Pickers.FileOpenPicker(appWindow.Id) { FileTypeFilter = { ".exe" }, CommitButtonText = "Add app" };
+                var file = await picker.PickSingleFileAsync();
+                if (file != null) { appRouting.Add(file.Path); ReapplyLatest(); }
+            }
+            catch (Exception error) { SetError("Could not add app: " + error.Message); }
+        };
         appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(titleBar);
@@ -165,6 +179,7 @@ public sealed class MixerWindow : Window
             devicesByChannel.Add(channel, combo);
             content.Children.Add(combo);
         }
+        content.Children.Add(appRouting);
         content.Children.Add(keyboardSettings);
         startupToggle = new ToggleSwitch { Header = "Start with Windows", OffContent = "Off", OnContent = "On" };
         AutomationProperties.SetName(startupToggle, "Start Win Mix with Windows");
@@ -232,6 +247,11 @@ public sealed class MixerWindow : Window
     }
 
     public void Update(AudioState value) => OnUi(() => Render(value));
+    public void SetAppChannels(IReadOnlyDictionary<string,string> value) => OnUi(() =>
+    {
+        appChannels = new Dictionary<string,string>(value, StringComparer.OrdinalIgnoreCase);
+        ReapplyLatest();
+    });
     public void SetShortcutUsed(bool used) => shortcutCard.Visibility = used ? Visibility.Collapsed : Visibility.Visible;
 
     public void ConfigureKeyboard(KeyboardBindings active, Func<nint, Task<int[]?>> record,
@@ -294,6 +314,7 @@ public sealed class MixerWindow : Window
             }
             foreach (var item in value.Sessions)
                 if (sessions.TryGetValue(item.Key, out var control)) Apply(control, item.Volume, item.Muted, true);
+            appRouting.Update(value, appChannels);
             RenderErrors();
         }
         finally { rendering = false; }

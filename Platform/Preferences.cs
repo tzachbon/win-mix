@@ -9,6 +9,7 @@ sealed class Preferences
 {
     public Dictionary<string,string?> Bindings { get; set; } = new();
     public Dictionary<string,bool> ReconnectRecognized { get; set; } = new();
+    public Dictionary<string,string> AppChannels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public int Selected { get; set; } = 2;
     public bool HasUsedShortcut { get; set; }
     public KeyboardBindings Keyboard { get; set; } = KeyboardBindings.Default;
@@ -24,6 +25,8 @@ sealed class Preferences
 
             JsonNode? keyboard = root[nameof(Keyboard)]?.DeepClone();
             root.Remove(nameof(Keyboard));
+            JsonNode? apps = root[nameof(AppChannels)]?.DeepClone();
+            root.Remove(nameof(AppChannels));
             var p = root.Deserialize<Preferences>();
             if (p?.Bindings is not null)
             {
@@ -37,6 +40,18 @@ sealed class Preferences
                     p.Keyboard = KeyboardBindings.Default;
                 }
                 p.ReconnectRecognized ??= new();
+                try
+                {
+                    if (apps is JsonObject assignments)
+                        foreach (var pair in assignments)
+                            if (pair.Value is JsonValue value && value.TryGetValue<string>(out var channel) &&
+                                AppRoutingRules.NormalizePath(pair.Key) is { } executable && AppRoutingRules.IsChannel(channel))
+                                p.AppChannels[executable] = channel;
+                }
+                catch (Exception error) when (error is ArgumentException or JsonException or InvalidOperationException)
+                {
+                    p.AppChannels.Clear();
+                }
                 p.Selected = Math.Clamp(p.Selected, 0, 3);
                 return p;
             }
@@ -48,6 +63,20 @@ sealed class Preferences
     {
         Bindings[channel] = id;
         ReconnectRecognized[channel] = id != null && MixRules.Discover(channel, devices) == id;
+    }
+    public string? SetAppChannel(string executable, string channel, string? path = null)
+    {
+        if (AppRoutingRules.NormalizePath(executable) is not { } normalized || !AppRoutingRules.IsChannel(channel))
+            return "Choose an executable and Game, Chat, or Media.";
+        bool existed = AppChannels.TryGetValue(normalized, out var previous);
+        AppChannels[normalized] = channel;
+        try { Save(path); return null; }
+        catch (Exception ex)
+        {
+            if (existed) AppChannels[normalized] = previous!;
+            else AppChannels.Remove(normalized);
+            return "Could not save app channel: " + ex.Message;
+        }
     }
     public bool RecoverBinding(string channel, string oldId, string newId)
     {
