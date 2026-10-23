@@ -59,6 +59,9 @@ static class RoutingProbe
         AudioState? state = null;
         try
         {
+            Require(SessionCatalog.ReadOrEmpty("mix-probe-unavailable-endpoint").Length == 0,
+                "An unavailable endpoint must not abort discovery of other outputs.");
+            Console.WriteLine("PASS unavailable endpoint read contained before discovering working outputs");
             service = new AudioService(new());
             service.Changed += value => Volatile.Write(ref state, value);
             service.Refresh();

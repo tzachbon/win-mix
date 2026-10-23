@@ -137,7 +137,7 @@ public sealed class AudioService : IDisposable
             device.AudioEndpointVolume.OnVolumeNotification += VolumeChanged;
             var manager = device.AudioSessionManager;
             manager.OnSessionCreated += SessionCreated;
-            foreach (var native in SessionCatalog.Read(id))
+            foreach (var native in SessionCatalog.ReadOrEmpty(id))
             {
                 var session = new AudioSessionControl(native);
                 if (session.State == AudioSessionState.AudioSessionStateExpired) { session.Dispose(); continue; }

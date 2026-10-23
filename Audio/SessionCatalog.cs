@@ -6,6 +6,13 @@ namespace Mix.Audio;
 // Keep GetProcessId's native success status, which NAudio's wrapper discards.
 static class SessionCatalog
 {
+    public static IAudioSessionControl2[] ReadOrEmpty(string endpoint)
+    {
+        // One unreadable endpoint must not prevent other outputs from updating.
+        try { return Read(endpoint); }
+        catch (Exception) { return []; }
+    }
+
     public static IAudioSessionControl2[] Read(string endpoint)
     {
         object? enumerator = null, device = null, manager = null, collection = null;
