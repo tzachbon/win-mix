@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\..\Core\Models.cs" Link="Core\Models.cs" />
+    <Compile Include="..\..\Core\AppRouting.cs" Link="Core\AppRouting.cs" />
     <Compile Include="..\..\Platform\Update*.cs" Link="Platform\%(Filename)%(Extension)" />
     <Compile Include="..\..\Platform\Preferences.cs" Link="Platform\Preferences.cs" />
     <Compile Include="..\..\Core\KeyboardBindings.cs" Link="Core\KeyboardBindings.cs" />

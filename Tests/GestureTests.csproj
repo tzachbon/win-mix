@@ -13,9 +13,11 @@
     <Compile Include="..\Core\KeyboardInput.cs" Link="KeyboardInput.cs" />
     <Compile Include="..\Core\KeyboardEditor.cs" Link="KeyboardEditor.cs" />
     <Compile Include="..\Core\Models.cs" Link="Models.cs" />
+    <Compile Include="..\Core\AppRouting.cs" Link="AppRouting.cs" />
     <Compile Include="GestureTests.cs" />
     <Compile Include="KeyboardInputTests.cs" />
     <Compile Include="KeyboardEditorTests.cs" />
+    <Compile Include="AppRoutingTests.cs" />
     <Compile Include="..\Platform\Preferences.cs" Link="Preferences.cs" />
   </ItemGroup>
 </Project>

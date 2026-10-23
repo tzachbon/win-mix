@@ -21,6 +21,7 @@ internal static class GestureTests
 
     private static async Task<int> Main()
     {
+        AppRoutingTests.Run();
         ModifierOrderActivates();
         AltGrDoesNotActivate();
         InitializeHeldWaitsForNeutral();

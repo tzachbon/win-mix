@@ -12,7 +12,12 @@ public sealed class AudioService : IDisposable
     readonly Thread thread;
     readonly Dictionary<string, MMDevice> devices = new();
     readonly Dictionary<string, AudioSessionControl> sessions = new();
-    readonly Dictionary<string, string?> executablePaths = new();
+    readonly Dictionary<string, IAudioSessionControl2> nativeSessions = new();
+    readonly Dictionary<string, SessionLevel> identities = new();
+    readonly Dictionary<string, string> routingErrors = new(StringComparer.OrdinalIgnoreCase);
+    readonly AppRoutingAttempts attempts = new();
+    Dictionary<string,string> appChannels;
+    AudioRouting? routing;
     readonly Dictionary<string, string?> bindings;
     readonly Dictionary<string, bool> reconnectRecognized;
     readonly Action<string, string, string>? bindingRecovered;
@@ -24,11 +29,12 @@ public sealed class AudioService : IDisposable
     public event Action<AudioState>? Changed;
 
     public AudioService(Dictionary<string, string?> bindings, Dictionary<string, bool>? reconnectRecognized = null,
-        Action<string, string, string>? bindingRecovered = null)
+        Action<string, string, string>? bindingRecovered = null, IReadOnlyDictionary<string,string>? appChannels = null)
     {
         this.bindings = new(bindings);
         this.reconnectRecognized = reconnectRecognized is null ? new() : new(reconnectRecognized);
         this.bindingRecovered = bindingRecovered;
+        this.appChannels = appChannels?.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase) ?? new(StringComparer.OrdinalIgnoreCase);
         thread = new Thread(Run) { IsBackground = true, Name = "Mix audio" };
         thread.SetApartmentState(ApartmentState.MTA);
         thread.Start();
@@ -46,6 +52,7 @@ public sealed class AudioService : IDisposable
         catch (Exception ex) { Publish(ex.Message); }
         finally
         {
+            routing?.Dispose();
             Clear();
             if (notifications != null) Try(() => enumerator?.UnregisterEndpointNotificationCallback(notifications));
             enumerator?.Dispose();
@@ -67,6 +74,18 @@ public sealed class AudioService : IDisposable
         reconnectRecognized[channel] = id != null && MixRules.Discover(channel, choices) == id;
         Rebuild();
     });
+    public void ConfigureAppChannels(IReadOnlyDictionary<string,string> assignments, string? retryPath = null)
+    {
+        var copy = assignments.ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
+        Post(() =>
+        {
+            foreach (var path in copy.Keys.Union(appChannels.Keys, StringComparer.OrdinalIgnoreCase))
+                if (path.Equals(retryPath, StringComparison.OrdinalIgnoreCase) || copy.GetValueOrDefault(path) != appChannels.GetValueOrDefault(path))
+                { attempts.Retry(path); routingErrors.Remove(path); }
+            appChannels = copy;
+            Rebuild();
+        });
+    }
     public void SetLevel(string channel, float value) => Post(() =>
     {
         if (Device(channel) is { } device) device.AudioEndpointVolume.MasterVolumeLevelScalar = MixRules.Clamp(value);
@@ -111,27 +130,68 @@ public sealed class AudioService : IDisposable
             bindings[channel] = resolved;
             if (!hasBinding && bindings[channel] != null) reconnectRecognized[channel] = true;
         }
-        foreach (var id in bindings.Values.Where(x => x != null).Distinct())
+        foreach (var id in choices.Select(x => x.Id))
         {
-            if (!choices.Any(x => x.Id == id)) continue;
-            var device = enumerator.GetDevice(id!);
-            devices[id!] = device;
+            var device = enumerator.GetDevice(id);
+            devices[id] = device;
             device.AudioEndpointVolume.OnVolumeNotification += VolumeChanged;
             var manager = device.AudioSessionManager;
             manager.OnSessionCreated += SessionCreated;
-            var collection = manager.Sessions;
-            for (int i = 0; i < collection.Count; i++)
+            foreach (var native in SessionCatalog.Read(id))
             {
-                var session = collection[i];
+                var session = new AudioSessionControl(native);
                 if (session.State == AudioSessionState.AudioSessionStateExpired) { session.Dispose(); continue; }
                 var key = id + "|" + session.GetSessionInstanceIdentifier;
                 session.RegisterEventClient(new SessionEvents(() => Post(() => Publish()), Refresh));
                 sessions.Add(key, session);
-                try { using var process = Process.GetProcessById((int)session.GetProcessID); executablePaths[key] = process.MainModule?.FileName; }
-                catch { executablePaths[key] = null; }
+                nativeSessions[key] = native;
+                int status = native.GetProcessId(out var pid);
+                long started = 0;
+                string? path = null;
+                try
+                {
+                    using var process = Process.GetProcessById(checked((int)pid));
+                    started = process.StartTime.ToUniversalTime().Ticks;
+                    path = AppRoutingRules.NormalizePath(process.MainModule?.FileName);
+                }
+                catch { }
+                bool system = session.IsSystemSoundsSession;
+                identities[key] = new(key, id, "", 0, false, path, pid, started, status == 0 && started != 0 && path != null && !system, system);
             }
         }
+        ReconcileApps();
         Publish();
+    }
+    void ReconcileApps()
+    {
+        attempts.Prune((pid, started) =>
+        {
+            try { using var process = Process.GetProcessById(checked((int)pid)); return !process.HasExited && process.StartTime.ToUniversalTime().Ticks == started; }
+            catch { return false; }
+        });
+        foreach (var row in identities.Values.Where(x => x.Routable && sessions[x.Key].State == AudioSessionState.AudioSessionStateActive)
+            .GroupBy(x => (x.ProcessId, x.ProcessStarted)).Select(x => x.First()))
+        {
+            if (!appChannels.TryGetValue(row.ExecutablePath!, out var channel) || !AppRoutingRules.IsChannel(channel)) continue;
+            if (Device(channel) is not { State: DeviceState.Active } destination) continue;
+            if (!attempts.TryBegin(row, channel, destination.ID)) continue;
+            try
+            {
+                var native = nativeSessions[row.Key];
+                int status = native.GetProcessId(out var pid);
+                using var process = Process.GetProcessById(checked((int)pid));
+                _ = process.SafeHandle;
+                if (!AppRoutingRules.SameProcess(row, status, pid, process.StartTime.ToUniversalTime().Ticks, process.HasExited) ||
+                    !StringComparer.OrdinalIgnoreCase.Equals(process.MainModule?.FileName, row.ExecutablePath) ||
+                    sessions[row.Key].State != AudioSessionState.AudioSessionStateActive)
+                    throw new InvalidOperationException("This app's audio session has closed or changed. Restart playback and try again.");
+                routing ??= new AudioRouting();
+                routing.Move(pid, destination.ID);
+                routingErrors.Remove(row.ExecutablePath!);
+                Refresh();
+            }
+            catch (Exception error) { routingErrors[row.ExecutablePath!] = error.Message; }
+        }
     }
     void SessionCreated(object sender, IAudioSessionControl session) => Refresh();
     void VolumeChanged(AudioVolumeNotificationData data) => Post(() => Publish());
@@ -157,17 +217,18 @@ public sealed class AudioService : IDisposable
                 if (session.IsSystemSoundsSession) name = "System sounds";
                 else if (string.IsNullOrWhiteSpace(name))
                     try { using var p = Process.GetProcessById((int)session.GetProcessID); name = p.ProcessName; } catch { name = "Application"; }
-                rows.Add(new(key, key[..key.IndexOf('|')], $"{name} · PID {session.GetProcessID}", session.SimpleAudioVolume.Volume, session.SimpleAudioVolume.Mute, executablePaths.GetValueOrDefault(key)));
+                rows.Add(identities[key] with { Name = $"{name} · PID {identities[key].ProcessId}", Volume = session.SimpleAudioVolume.Volume, Muted = session.SimpleAudioVolume.Mute });
             }
             catch { }
-        Changed?.Invoke(new(choices, levels.ToArray(), rows.ToArray(), error));
+        Changed?.Invoke(new(choices, levels.ToArray(), rows.ToArray(), error, new Dictionary<string,string>(routingErrors, StringComparer.OrdinalIgnoreCase)));
     }
     static void Try(Action action) { try { action(); } catch { } }
     void Clear()
     {
         foreach (var s in sessions.Values) Try(s.Dispose);
         sessions.Clear();
-        executablePaths.Clear();
+        nativeSessions.Clear();
+        identities.Clear();
         foreach (var d in devices.Values)
         {
             Try(() => d.AudioEndpointVolume.OnVolumeNotification -= VolumeChanged);

@@ -2,8 +2,10 @@ namespace Mix.Core;
 
 public record DeviceChoice(string Id, string Name);
 public record Level(string Key, string Name, string? DeviceId, float Volume, bool Muted, bool Available);
-public record SessionLevel(string Key, string DeviceId, string Name, float Volume, bool Muted, string? ExecutablePath = null);
-public record AudioState(DeviceChoice[] Devices, Level[] Channels, SessionLevel[] Sessions, string? Error);
+public record SessionLevel(string Key, string DeviceId, string Name, float Volume, bool Muted, string? ExecutablePath = null,
+    uint ProcessId = 0, long ProcessStarted = 0, bool Routable = false, bool SystemSounds = false);
+public record AudioState(DeviceChoice[] Devices, Level[] Channels, SessionLevel[] Sessions, string? Error,
+    IReadOnlyDictionary<string,string>? RoutingErrors = null);
 
 public static class MixRules
 {
