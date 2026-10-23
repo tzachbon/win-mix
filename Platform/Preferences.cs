@@ -40,11 +40,18 @@ sealed class Preferences
                     p.Keyboard = KeyboardBindings.Default;
                 }
                 p.ReconnectRecognized ??= new();
-                if (apps is JsonObject assignments)
-                    foreach (var pair in assignments)
-                        if (pair.Value is JsonValue value && value.TryGetValue<string>(out var channel) &&
-                            AppRoutingRules.NormalizePath(pair.Key) is { } executable && AppRoutingRules.IsChannel(channel))
-                            p.AppChannels[executable] = channel;
+                try
+                {
+                    if (apps is JsonObject assignments)
+                        foreach (var pair in assignments)
+                            if (pair.Value is JsonValue value && value.TryGetValue<string>(out var channel) &&
+                                AppRoutingRules.NormalizePath(pair.Key) is { } executable && AppRoutingRules.IsChannel(channel))
+                                p.AppChannels[executable] = channel;
+                }
+                catch (Exception error) when (error is ArgumentException or JsonException or InvalidOperationException)
+                {
+                    p.AppChannels.Clear();
+                }
                 p.Selected = Math.Clamp(p.Selected, 0, 3);
                 return p;
             }

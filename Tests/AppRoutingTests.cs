@@ -24,6 +24,11 @@ static class AppRoutingTests
             File.WriteAllText(file, """{"AppChannels":{"relative.exe":"Game","C:\\Player.exe":"Master","C:\\Bad.exe":123,"C:\\Chat.exe":"Chat"}}""");
             loaded = Preferences.Load(file);
             Check(loaded.AppChannels.Count == 1 && loaded.AppChannels[@"C:\Chat.exe"] == "Chat", "invalid paths and channels are discarded");
+            File.WriteAllText(file, """{"Bindings":{"Game":"saved-output"},"Selected":1,"HasUsedShortcut":true,"AppChannels":{"C:\\Player.exe":"Game","C:\\Player.exe":"Chat"}}""");
+            loaded = Preferences.Load(file);
+            Check(loaded.Bindings.GetValueOrDefault("Game") == "saved-output" && loaded.Selected == 1 && loaded.HasUsedShortcut,
+                "duplicate app keys must preserve unrelated preferences");
+            Check(loaded.AppChannels.Count == 0, "invalid app field is discarded without resetting other preferences");
             string?[] roles = [null, "old-media", "old-chat"];
             bool fail = true;
             try
