@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/tzachbon/win-mix/compare/v1.2.2...v1.3.0) (2026-10-23)
+
+
+### Features
+
+* move running and inactive apps between audio channels ([#26](https://github.com/tzachbon/win-mix/issues/26)) ([8056067](https://github.com/tzachbon/win-mix/commit/80560671d802afa9188deae593a4dd61494bf0f8))
+
 ## [1.2.2](https://github.com/tzachbon/win-mix/compare/v1.2.1...v1.2.2) (2026-10-06)
 
 
